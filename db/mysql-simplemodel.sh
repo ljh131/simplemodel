@@ -1,0 +1,1 @@
+mysql -usimplemodeluser -psimplemodeluserpw simplemodel
