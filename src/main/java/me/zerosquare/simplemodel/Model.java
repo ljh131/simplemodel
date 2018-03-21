@@ -358,6 +358,12 @@ public class Model {
     for(int i = 0; i < vals.size(); i++) {
       Object val = vals.get(i);
       colidx = lastColumnIndex + 1 + i;
+
+      if(val == null) {
+        Logger.t("idx %d colidx %d val null", i, colidx);
+        continue;
+      }
+
       Logger.t("idx %d colidx %d val %s", i, colidx, val.toString());
 
       // TODO need more
