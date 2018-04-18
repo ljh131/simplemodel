@@ -245,8 +245,8 @@ public class SimpleModelTest {
     long eid2 = e.create();
     assertTrue(eid2 >= 1);
 
-    // select with join
-    List<Employee> rs = new Employee().joins("companies on companies.id = employees.company_id").where("companies.id = ?", cid).order("employees.id").fetch();
+    // select with explicit join
+    List<Employee> rs = new Employee().joins("join companies on companies.id = employees.company_id").where("companies.id = ?", cid).order("employees.id").fetch();
 
     assertEquals(2, rs.size());
 

@@ -1,7 +1,8 @@
 package me.zerosquare.simplemodel;
 
-import java.util.*;
 import java.sql.*;
+import java.util.*;
+import java.util.regex.*;
 import java.lang.annotation.*;
 import java.lang.reflect.*;
 import org.apache.commons.lang3.*;
@@ -118,8 +119,13 @@ public class Model {
     return this;
   }
 
-  // TODO need outer join
+  private static final Pattern findJoinPattern = Pattern.compile("\\bjoin\\b", Pattern.CASE_INSENSITIVE);
+
   public Model joins(String joinClause, Object... args) {
+    if(!findJoinPattern.matcher(joinClause).find()) {
+      joinClause = "JOIN " + joinClause;
+    }
+
 		String c = String.format(joinClause, args);
     reservedJoin = c;
     return this;
@@ -156,7 +162,7 @@ public class Model {
         reservedSelect.isEmpty() ? "*" : reservedSelect, 
         tableName);
     if(!reservedJoin.isEmpty()) {
-      q += String.format(" JOIN %s", reservedJoin);
+      q += String.format(" %s", reservedJoin);
     }
     if(!reservedWhere.isEmpty()) {
       q += String.format(" WHERE %s", reservedWhere);
