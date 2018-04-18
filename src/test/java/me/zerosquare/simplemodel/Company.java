@@ -5,22 +5,14 @@ import java.lang.reflect.*;
 
 import me.zerosquare.simplemodel.*;
 
-@BindTable(name = "employees")
-public class Employee extends Model{
+@BindTable(name = "companies")
+public class Company extends Model{
   // should be exists for update/delete
   @BindColumn(name = "id")
   public Long id;
 
-  @BindColumn(name = "company_id")
-  public Long companyId;
-
-  @BindColumn(name = "uuid")
-  public String uuid;
-
   @BindColumn(name = "name")
   public String name;
 
-  @BindColumn(name = "age")
-  public Integer age;
 }
 

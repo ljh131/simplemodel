@@ -112,14 +112,16 @@ public class Model {
     return -1;
   }
 
-  public Model where(String whereClause, Object... args) {
-    reservedWhereParams.addAll(Arrays.asList(args));
+  public Model select(String selectClause, Object... args) {
+		String c = String.format(selectClause, args);
+    reservedSelect = c;
+    return this;
+  }
 
-    if(reservedWhere.isEmpty()) {
-      reservedWhere = whereClause;
-    } else {
-      reservedWhere += " and " + whereClause;
-    }
+  // TODO need outer join
+  public Model joins(String joinClause, Object... args) {
+		String c = String.format(joinClause, args);
+    reservedJoin = c;
     return this;
   }
 
@@ -135,9 +137,14 @@ public class Model {
     return this;
   }
 
-  public Model select(String selectClause, Object... args) {
-		String c = String.format(selectClause, args);
-    reservedSelect = c;
+  public Model where(String whereClause, Object... args) {
+    reservedWhereParams.addAll(Arrays.asList(args));
+
+    if(reservedWhere.isEmpty()) {
+      reservedWhere = whereClause;
+    } else {
+      reservedWhere += " and " + whereClause;
+    }
     return this;
   }
 
@@ -148,6 +155,9 @@ public class Model {
     String q = String.format("SELECT %s from %s", 
         reservedSelect.isEmpty() ? "*" : reservedSelect, 
         tableName);
+    if(!reservedJoin.isEmpty()) {
+      q += String.format(" JOIN %s", reservedJoin);
+    }
     if(!reservedWhere.isEmpty()) {
       q += String.format(" WHERE %s", reservedWhere);
     }
@@ -173,6 +183,7 @@ public class Model {
         Map<String, Object> m = new HashMap<>();
 
         for(int col = 1; col <= cols; col++) {
+          String table = meta.getTableName(col);
           String key = meta.getColumnName(col);
           int type = meta.getColumnType(col);
           Object val;
@@ -208,8 +219,12 @@ public class Model {
                     meta.getColumnTypeName(col), type, meta.getColumnClassName(col), key));
           }
 
-          Logger.t("key %s type %s val %s", key, type, val == null ? "(null)" : val.toString());
+          Logger.t("fetched - table: %s key: %s type: %s val: %s", 
+              table, key, type, val == null ? "(null)" : val.toString());
 
+          if(!table.equals(tableName)) {
+            key = String.format("%s.%s", table, key);
+          }
           m.put(key, val);
         }
 
@@ -299,6 +314,18 @@ public class Model {
     return (long)get(columnName);
   }
 
+  public String dump() {
+    String ds = "";
+    ds += String.format("tableName: %s\n", tableName);
+    ds += String.format("objects:\n", tableName);
+    for (Map.Entry<String, Object> entry : objects.entrySet()) {
+      String key = entry.getKey();
+      String value = entry.getValue().toString();
+      ds += String.format(" %s : %s\n", key, value);
+    }
+    return ds;
+  }
+
   private Model newInstance() {
     try {
       return getClass().newInstance();
@@ -360,11 +387,11 @@ public class Model {
       colidx = lastColumnIndex + 1 + i;
 
       if(val == null) {
-        Logger.t("idx %d colidx %d val null", i, colidx);
+        Logger.t("preparams - idx: %d colidx: %d val: (null)", i, colidx);
         continue;
       }
 
-      Logger.t("idx %d colidx %d val %s", i, colidx, val.toString());
+      Logger.t("preparams - idx: %d colidx: %d val: %s", i, colidx, val.toString());
 
       // TODO need more
       if(val instanceof Integer) {
@@ -378,7 +405,7 @@ public class Model {
       } else if(val instanceof Timestamp) {
         pst.setTimestamp(colidx, (Timestamp)val);
       } else {
-        Logger.w("unrecognize type for val: %s", val.toString());
+        Logger.w("preparams - unrecognize type for val: %s", val.toString());
       }
     }
     return colidx;
@@ -497,10 +524,11 @@ public class Model {
 
   private Map<String, Object> objects = new HashMap<>();
 
+  private String reservedSelect = "";
+  private String reservedJoin = "";
   private String reservedWhere = "";
   private ArrayList<Object> reservedWhereParams = new ArrayList<>();
   private String reservedOrderby = "";
   private String reservedLimit = "";
-  private String reservedSelect = "";
 
 }
