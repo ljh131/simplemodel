@@ -113,7 +113,7 @@ public class SimpleModelTest {
     assertTrue(new Product().find(id) == null);
 
     // but it is alive actually!
-    p = new Product().softDelete(false).find(id);
+    p = new Product().includeDeleted().find(id);
     assertEquals(name, p.name);
   }
 
