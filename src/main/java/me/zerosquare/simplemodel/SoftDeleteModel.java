@@ -12,17 +12,21 @@ public class SoftDeleteModel extends Model {
 
   @Override
   public <T extends Model> List<T> fetch() {
-    if(enableSoftDelete) {
+    if(!includeDeleted) {
       where("deleted_at is null");
     }
     return super.fetch();
   }
 
-  public Model softDelete(boolean enable) {
-    enableSoftDelete = enable;
+  public Model includeDeleted() {
+    return includeDeleted(true);
+  }
+
+  public Model includeDeleted(boolean flag) {
+    includeDeleted = flag;
     return this;
   }
 
-  private boolean enableSoftDelete = true;
+  private boolean includeDeleted = false;
 
 }
