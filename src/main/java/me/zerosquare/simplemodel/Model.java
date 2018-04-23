@@ -45,7 +45,7 @@ public class Model {
 
     fillObjectsFromAnnotation();
 
-    Pair<ArrayList<String>, ArrayList<Object>> nvs = getColumnNameAndValues();
+    Pair<ArrayList<String>, ArrayList<Object>> nvs = buildColumnNameAndValues();
     ArrayList<String> colnames = nvs.getLeft();
     ArrayList<Object> colvals = nvs.getRight();
 
@@ -57,7 +57,7 @@ public class Model {
     try {
       c = Connector.prepareStatement(q, true);
       PreparedStatement pst = c.getPreparedStatement();
-      prepareParameters(pst, 0, colvals);
+      addParameters(pst, 0, colvals);
 
       pst.executeUpdate();
       ResultSet rs = pst.getGeneratedKeys();
@@ -68,43 +68,12 @@ public class Model {
         put("id", generatedId);
         fillSingleObjectToAnnotation("id", generatedId);
 
+        cleanUp(true);
         return generatedId;
       }
+
+      cleanUp(true);
       return 0;
-    } catch(SQLException e) {
-      Logger.warnException(e);
-    } finally {
-      if(c != null) { c.close(); }
-    }
-    return -1;
-  }
-
-  public int update() {
-    return update(makeDefaultWhereForUpdate());
-  }
-
-  // returns affected row count
-  public int update(String whereClause, Object... args) {
-    beforeExecute(QueryType.UPDATE);
-
-    fillObjectsFromAnnotation();
-
-    Pair<ArrayList<String>, ArrayList<Object>> nvs = getColumnNameAndValues();
-    ArrayList<String> colnames = nvs.getLeft();
-    ArrayList<Object> colvals = nvs.getRight();
-
-    String q = String.format("UPDATE %s SET %s WHERE %s", tableName, 
-      StringUtils.join(colnames.stream().map(c -> String.format("%s=?", c)).toArray(), ','),
-      whereClause);
-
-    Connector c = null;
-    try {
-      c = Connector.prepareStatement(q, true);
-      PreparedStatement pst = c.getPreparedStatement();
-      int last = prepareParameters(pst, 0, colvals);
-      prepareParameters(pst, last, Arrays.asList(args));
-
-      return pst.executeUpdate();
     } catch(SQLException e) {
       Logger.warnException(e);
     } finally {
@@ -144,6 +113,8 @@ public class Model {
   }
 
   public Model where(String whereClause, Object... args) {
+    if(StringUtils.isBlank(whereClause)) return this;
+
     reservedWhereParams.addAll(Arrays.asList(args));
 
     if(reservedWhere.isEmpty()) {
@@ -178,7 +149,7 @@ public class Model {
     try {
       c = Connector.prepareStatement(q, false);
       PreparedStatement pst = c.getPreparedStatement();
-      prepareParameters(pst, 0, reservedWhereParams);
+      addParameters(pst, 0, reservedWhereParams);
       ResultSet rs = pst.executeQuery();
       ResultSetMetaData meta = rs.getMetaData();
       int cols = meta.getColumnCount();
@@ -235,11 +206,13 @@ public class Model {
         }
 
         Model model = newInstance();
+        model.tableName = tableName;
         model.objects = m;
         model.fillObjectsToAnnotation();
         models.add(model);
       }
 
+      cleanUp(true);
       return (List<T>)models;
     } catch(SQLException e) {
       Logger.warnException(e);
@@ -262,21 +235,79 @@ public class Model {
     return findBy(String.format("id=%d", id));
   }
 
-  public int delete() {
-    return delete(makeDefaultWhereForUpdate());
+  // returns affected row count
+  public int update() {
+    beforeExecute(QueryType.UPDATE);
+
+    reserveDefaultWhereForUpdate();
+    fillObjectsFromAnnotation();
+
+    Pair<ArrayList<String>, ArrayList<Object>> nvs = buildColumnNameAndValues();
+    ArrayList<String> colnames = nvs.getLeft();
+    ArrayList<Object> colvals = nvs.getRight();
+
+    String q = String.format("UPDATE %s SET %s WHERE %s", tableName, 
+      StringUtils.join(colnames.stream().map(c -> String.format("%s=?", c)).toArray(), ','),
+      getReservedWhere());
+
+    Connector c = null;
+    try {
+      c = Connector.prepareStatement(q, true);
+      PreparedStatement pst = c.getPreparedStatement();
+      int last = addParameters(pst, 0, colvals);
+      addParameters(pst, last, reservedWhereParams);
+
+      cleanUp(true);
+      return pst.executeUpdate();
+    } catch(SQLException e) {
+      Logger.warnException(e);
+    } finally {
+      if(c != null) { c.close(); }
+    }
+    return -1;
   }
 
-  public int delete(String whereClause, Object... args) {
+  /**
+   * update single column on db directly. (so it skips callback)
+   */
+  public int updateColumn(String columnName, Object value) {
+    reserveDefaultWhereForUpdate();
+
+    String q = String.format("UPDATE %s SET %s WHERE %s", tableName, 
+      String.format("%s=?", columnName),
+      getReservedWhere());
+
+    Connector c = null;
+    try {
+      c = Connector.prepareStatement(q, true);
+      PreparedStatement pst = c.getPreparedStatement();
+      int last = addParameters(pst, 0, Arrays.asList(value));
+      addParameters(pst, last, reservedWhereParams);
+
+      return pst.executeUpdate();
+    } catch(SQLException e) {
+      Logger.warnException(e);
+    } finally {
+      if(c != null) { c.close(); }
+    }
+    return -1;
+  }
+
+  public int delete() {
     beforeExecute(QueryType.DELETE);
 
+    reserveDefaultWhereForUpdate();
+
     String q = String.format("DELETE FROM %s WHERE %s", tableName, 
-      whereClause);
+      getReservedWhere());
 
     Connector c = null;
     try {
       c = Connector.prepareStatement(q, false);
       PreparedStatement pst = c.getPreparedStatement();
-      prepareParameters(pst, 0, Arrays.asList(args));
+      addParameters(pst, 0, reservedWhereParams);
+
+      cleanUp(true);
       return pst.executeUpdate();
     } catch(SQLException e) {
       Logger.warnException(e);
@@ -352,7 +383,7 @@ public class Model {
     }
   }
 
-  private Pair<ArrayList<String>, ArrayList<Object>> getColumnNameAndValues() {
+  private Pair<ArrayList<String>, ArrayList<Object>> buildColumnNameAndValues() {
     ArrayList<String> colnames = new ArrayList<>();
     ArrayList<Object> colvals = new ArrayList<>();
 
@@ -385,7 +416,7 @@ public class Model {
   /**
    * @return 마지막으로 설정된 column index
    */
-  private int prepareParameters(PreparedStatement pst, int lastColumnIndex, List<Object> vals) throws SQLException {
+  private int addParameters(PreparedStatement pst, int lastColumnIndex, List<Object> vals) throws SQLException {
     int colidx = 0;
 
     for(int i = 0; i < vals.size(); i++) {
@@ -417,6 +448,12 @@ public class Model {
     return colidx;
   }
 
+  private void reserveDefaultWhereForUpdate() {
+    if(!StringUtils.isBlank(reservedWhere)) return;
+    reservedWhere = makeDefaultWhereForUpdate();
+    Logger.t("default where for update reserved: %s", reservedWhere);
+  }
+
   // update/delete시 조건문을 지정하지 않을 경우 사용하는 where절
   private String makeDefaultWhereForUpdate() {
     Long id = getId();
@@ -428,6 +465,14 @@ public class Model {
     }
     String defaultWhere = String.format("id=%d", id);
     return defaultWhere;
+  }
+
+  /**
+   * clean up after every query
+   */
+  private void cleanUp(boolean success) {
+    reservedWhere = "";
+    reservedWhereParams = new ArrayList<>();
   }
 
   private Long getIdFromAnnotation() {
@@ -526,14 +571,22 @@ public class Model {
     }
   }
 
+  private String getReservedWhere() {
+    if(StringUtils.isBlank(reservedWhere)) {
+      throw new IllegalArgumentException("no where clause specified!");
+    }
+    return reservedWhere;
+  }
+
   private String tableName;
 
   private Map<String, Object> objects = new HashMap<>();
 
-  private String reservedSelect = "";
-  private String reservedJoin = "";
   private String reservedWhere = "";
   private ArrayList<Object> reservedWhereParams = new ArrayList<>();
+
+  private String reservedSelect = "";
+  private String reservedJoin = "";
   private String reservedOrderby = "";
   private String reservedLimit = "";
 

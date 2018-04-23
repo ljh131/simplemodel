@@ -21,6 +21,69 @@ public class SimpleModelTest {
   }
 
   @Test
+  public void testBasic() throws Exception {
+    String name = makeName();
+
+    // insert
+    Model newEntry = Model.table("employees");
+    newEntry.put("name", name);
+    newEntry.put("age", 30);
+    long id = newEntry.create();
+    assertTrue(id >= 1);
+
+    // basic select (use where twice)
+    Model r = Model.table("employees").where("id = ?", id).where("name = ?", name).fetch().get(0);
+    assertEquals(id, (long)r.getId());
+    assertEquals(name, r.getString("name"));
+    assertEquals(30, r.getInt("age"));
+
+    // update
+    Model updateEntry = Model.table("employees");
+    updateEntry.put("age", 31);
+    assertEquals(1, updateEntry.where("id = ?", id).update());
+
+    // employee select (findBy, find)
+    r = Model.table("employees").findBy("id = ?", id);
+    assertEquals(31, r.getInt("age"));
+    assertEquals(name, r.getString("name"));
+
+    r = Model.table("employees").find(id);
+    assertEquals(name, r.getString("name"));
+
+    // employee select and not found
+    r = Model.table("employees").find(44444444);
+    assertEquals(null, r);
+
+    // delete with find
+    assertEquals(1, Model.table("employees").find(id).delete());
+  }
+
+  @Test
+  public void testUpdateColumn() {
+    String name = makeName();
+
+    // insert
+    Model newEntry = Model.table("employees");
+    newEntry.put("name", name);
+    newEntry.put("age", 30);
+    long id = newEntry.create();
+    assertTrue(id >= 1);
+
+    // update specific column only
+    Model.table("employees").where("id=?", id).updateColumn("age", 11);
+
+    Model r = Model.table("employees").find(id);
+    assertEquals(name, r.getString("name"));
+    assertEquals(11, r.getInt("age"));
+
+    // again (with find, not where)
+    Model.table("employees").find(id).updateColumn("age", 22);
+
+    r = Model.table("employees").find(id);
+    assertEquals(22, r.getInt("age"));
+  }
+
+  @Test
   public void testORM() throws Exception {
     String name = makeName();
 
@@ -137,61 +200,6 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testBasic() throws Exception {
-    String name = makeName();
-
-    // insert
-    Model newEntry = Model.table("employees");
-    newEntry.put("name", name);
-    newEntry.put("age", 30);
-    long id = newEntry.create();
-    assertTrue(id >= 1);
-
-    // basic select (use where twice)
-    Model r = Model.table("employees").where("id = ?", id).where("name = ?", name).fetch().get(0);
-    assertEquals(id, (long)r.getId());
-    assertEquals(name, r.getString("name"));
-    assertEquals(30, r.getInt("age"));
-
-    // update
-    Model updateEntry = Model.table("employees");
-    updateEntry.put("age", 31);
-    assertEquals(1, updateEntry.update("id = ?", id));
-
-    // employee select (findBy, find)
-    r = Model.table("employees").findBy("id = ?", id);
-    assertEquals(31, r.getInt("age"));
-    assertEquals(name, r.getString("name"));
-
-    r = Model.table("employees").find(id);
-    assertEquals(name, r.getString("name"));
-
-    // employee select and not found
-    r = Model.table("employees").find(44444444);
-    assertEquals(null, r);
-
-    // delete
-    assertEquals(1, Model.table("employees").delete("id = ?", id));
-
-    // TODO
-    /*
-    // update with where
-    Model updateEntry = Model.table("employee").where("id = %d", id);
-    updateEntry.put("age", 31);
-    updateEntry.update();
-    */
-
-    /*
-    // delete with where
-    Model.table("employee").where("id = %d", id).delete();
-    */
-  }
-
-  private String makeName() {
-    return UUID.randomUUID().toString();
-  }
-
-  @Test
   public void testJoin() {
     // insert
     Model c = Model.table("companies");
@@ -258,4 +266,7 @@ public class SimpleModelTest {
     assertEquals(cid, rs.get(1).getInt("companies.id"));
   }
 
+  private String makeName() {
+    return UUID.randomUUID().toString();
+  }
 }

@@ -5,9 +5,8 @@ import java.sql.*;
 
 public class SoftDeleteModel extends Model {
   @Override
-  public int delete(String whereClause, Object... args) {
-    put("deleted_at", new Timestamp(System.currentTimeMillis()));
-    return update(whereClause, args);
+  public int delete() {
+    return updateColumn("deleted_at", new Timestamp(System.currentTimeMillis()));
   }
 
   @Override

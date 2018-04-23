@@ -1,6 +1,7 @@
 package me.zerosquare.simplemodel;
 
 import java.util.*;
+import java.sql.*;
 import java.lang.reflect.*;
 
 import me.zerosquare.simplemodel.*;
@@ -16,6 +17,9 @@ public class Product extends SoftDeleteModel {
 
   @BindColumn(name = "price")
   public Integer price;
+
+  @BindColumn(name = "deleted_at")
+  public Timestamp deletedAt;
 
   @Override
   protected void beforeExecute(QueryType type) {
