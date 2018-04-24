@@ -271,6 +271,31 @@ public class SimpleModelTest {
     assertEquals(cid, rs.get(1).getInt("companies.id"));
   }
 
+  @Test
+  public void testFindWithJoin() {
+    // insert
+    Company c = new Company();
+    c.name = "join company";
+    long cid = c.create();
+    assertTrue(cid >= 1);
+
+    // insert two
+    Employee e = new Employee();
+    e.name = "joined employee1";
+    e.age = 32;
+    e.companyId = cid;
+    long eid1 = e.create();
+    assertTrue(eid1 >= 1);
+
+    e.name = "joined employee2";
+    e.age = 33;
+    long eid2 = e.create();
+    assertTrue(eid2 >= 1);
+
+    Employee rs = new Employee().joins("join companies on companies.id = employees.company_id").find(eid1);
+    assertEquals(eid1, (long)rs.id);
+  }
+
   private String makeName() {
     return UUID.randomUUID().toString();
   }
