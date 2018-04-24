@@ -232,7 +232,7 @@ public class Model {
 
   // returns null if no result
   public <T extends Model> T find(long id) {
-    return findBy(String.format("id=%d", id));
+    return findBy(makeWhereWithFindId(id));
   }
 
   // returns affected row count
@@ -464,8 +464,16 @@ public class Model {
         // TODO throws new Exception();
       }
     }
-    String defaultWhere = String.format("id=%d", id);
+
+    String defaultWhere = makeWhereWithFindId(id);
     return defaultWhere;
+  }
+
+  private String makeWhereWithFindId(long id) {
+    String where = StringUtils.isBlank(reservedJoin) ? 
+      String.format("id=%d", id) :
+      String.format("%s.id=%d", tableName, id);
+    return where;
   }
 
   /**
