@@ -23,26 +23,28 @@ public class SimpleModelTest {
   @Test
   public void testBasic() throws Exception {
     String name = makeName();
+    int age = 30;
 
     // insert
     Model newEntry = Model.table("employees");
     newEntry.put("name", name);
-    newEntry.put("age", 30);
+    newEntry.put("age", age);
     long id = newEntry.create();
     assertTrue(id >= 1);
 
     // basic select (use where twice)
-    Model r = Model.table("employees").where("id = ?", id).where("name = ?", name).fetch().get(0);
+    //Model r = Model.table("employees").where("id = ?", id).where("name = ?", name).fetch().get(0);
+    Model r = Model.table("employees").where("name = ?", name).where("age = ?", age).fetch().get(0);
     assertEquals(id, (long)r.getId());
     assertEquals(name, r.getString("name"));
-    assertEquals(30, r.getInt("age"));
+    assertEquals(age, r.getInt("age"));
 
     // update
     Model updateEntry = Model.table("employees");
     updateEntry.put("age", 31);
     assertEquals(1, updateEntry.where("id = ?", id).update());
 
-    // employee select (findBy, find)
+    // findBy, find
     r = Model.table("employees").findBy("id = ?", id);
     assertEquals(31, r.getInt("age"));
     assertEquals(name, r.getString("name"));
@@ -50,12 +52,12 @@ public class SimpleModelTest {
     r = Model.table("employees").find(id);
     assertEquals(name, r.getString("name"));
 
+    // delete with find
+    assertEquals(1, Model.table("employees").find(id).delete());
+
     // employee select and not found
     r = Model.table("employees").find(44444444);
     assertEquals(null, r);
-
-    // delete with find
-    assertEquals(1, Model.table("employees").find(id).delete());
   }
 
   @Test
@@ -178,6 +180,9 @@ public class SimpleModelTest {
     // but it is alive actually!
     p = new Product().includeDeleted().find(id);
     assertEquals(name, p.name);
+    assertTrue(p.deletedAt != null);
+
+    Logger.i("%s", p.deletedAt.toString());
   }
 
   @Test

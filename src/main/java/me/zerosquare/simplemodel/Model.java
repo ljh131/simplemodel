@@ -320,8 +320,9 @@ public class Model {
   /** 
    * put column and value for create/update
    */
-  public void put(String key, Object val) {
+  public Model put(String key, Object val) {
     objects.put(key, val);
+    return this;
   }
 
   /**
@@ -357,7 +358,7 @@ public class Model {
     ds += String.format("objects:\n", tableName);
     for (Map.Entry<String, Object> entry : objects.entrySet()) {
       String key = entry.getKey();
-      String value = entry.getValue().toString();
+      Object value = entry.getValue();
       ds += String.format(" %s : %s\n", key, value);
     }
     return ds;

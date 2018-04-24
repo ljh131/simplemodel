@@ -14,9 +14,6 @@ public class Employee extends Model{
   @BindColumn(name = "company_id")
   public Long companyId;
 
-  @BindColumn(name = "uuid")
-  public String uuid;
-
   @BindColumn(name = "name")
   public String name;
 
