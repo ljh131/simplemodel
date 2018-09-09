@@ -12,7 +12,7 @@ public class SoftDeleteModel extends Model {
   @Override
   public <T extends Model> List<T> fetch() {
     if(!includeDeleted) {
-      where("deleted_at is null");
+      where(String.format("%s.deleted_at is null", getTableName()));
     }
     return super.fetch();
   }
