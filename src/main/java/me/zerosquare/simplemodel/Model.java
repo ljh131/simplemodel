@@ -352,6 +352,10 @@ public class Model {
     return (long)get(columnName);
   }
 
+  public String getTableName() {
+    return tableName;
+  }
+
   public String dump() {
     String ds = "";
     ds += String.format("tableName: %s\n", tableName);
