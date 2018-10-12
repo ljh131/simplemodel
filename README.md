@@ -5,8 +5,10 @@ ActiveRecord on Java for minimalist
 
 ### Use maven to install locally
 ```bash
-mvn install
+mvn install -DskipTests
 ```
+
+or `mvn install` if you have a testing environment
 
 ### Append dependency to your pom.xml
 ```xml

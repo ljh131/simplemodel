@@ -112,6 +112,18 @@ public class Model {
     return this;
   }
 
+  public Model offset(long offsetNumber) {
+		String c = String.format("%d", offsetNumber);
+    reservedOffset = c;
+    return this;
+  }
+
+  public Model resetWhere() {
+    reservedWhere = "";
+    reservedWhereParams = new ArrayList<>();
+    return this;
+  }
+
   public Model where(String whereClause, Object... args) {
     if(StringUtils.isBlank(whereClause)) return this;
 
@@ -143,6 +155,9 @@ public class Model {
     }
     if(!reservedLimit.isEmpty()) {
       q += String.format(" LIMIT %s", reservedLimit);
+    }
+    if(!reservedOffset.isEmpty()) {
+      q += String.format(" OFFSET %s", reservedOffset);
     }
 
     Connector c = null;
@@ -199,7 +214,7 @@ public class Model {
           Logger.t("fetched - table: %s key: %s type: %s val: %s", 
               table, key, type, val == null ? "(null)" : val.toString());
 
-          if(!table.equals(tableName)) {
+          if(!table.equals(tableName) && table.length() > 0) {
             key = String.format("%s.%s", table, key);
           }
           m.put(key, val);
@@ -221,6 +236,14 @@ public class Model {
     }
 
     return null;
+  }
+
+  /**
+   * This method is helpful for these kind of queries - `select count(id) ...`
+   * Note that it does not use `limit 1`.
+   */
+  public <T extends Model> T fetchFirst() {
+    return (T)fetch().get(0);
   }
 
   // returns null if no result
@@ -484,8 +507,6 @@ public class Model {
    * clean up after every query
    */
   private void cleanUp(boolean success) {
-    reservedWhere = "";
-    reservedWhereParams = new ArrayList<>();
   }
 
   private Long getIdFromAnnotation() {
@@ -593,6 +614,7 @@ public class Model {
 
   private String tableName;
 
+  // FIXME rename to columnValues
   private Map<String, Object> objects = new HashMap<>();
 
   private String reservedWhere = "";
@@ -602,5 +624,6 @@ public class Model {
   private String reservedJoin = "";
   private String reservedOrderby = "";
   private String reservedLimit = "";
+  private String reservedOffset = "";
 
 }

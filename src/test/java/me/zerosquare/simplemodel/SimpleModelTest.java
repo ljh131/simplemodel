@@ -39,6 +39,9 @@ public class SimpleModelTest {
     assertEquals(name, r.getString("name"));
     assertEquals(age, r.getInt("age"));
 
+    long cnt = Model.table("employees").where("name = ?", name).select("count(id) cnt").fetchFirst().getLong("cnt");
+    assertEquals(1, cnt);
+
     // update
     Model updateEntry = Model.table("employees");
     updateEntry.put("age", 31);
@@ -122,6 +125,34 @@ public class SimpleModelTest {
 
     // confirm not exists
     assertTrue(new Employee().find(id) == null);
+  }
+
+  @Test
+  public void testOffset() {
+    int price = (int)(System.currentTimeMillis() / 1000);
+
+    Product np = new Product();
+    np.price = price;
+
+    for(int i = 0; i < 10; i++) {
+      np.name = String.format("offset%d", i);
+      assertTrue(np.create() >= 1);
+    }
+
+    Model query = new Product().where("price = ?", price).order("id").limit(5);
+    List<Product> ps;
+
+    // first page
+    ps = query.offset(0).fetch();
+    for(int i = 0; i < 5; i++) {
+      assertEquals(String.format("offset%d", i), ps.get(i).name);
+    }
+
+    // second page
+    ps = query.offset(5).fetch();
+    for(int i = 0; i < 5; i++) {
+      assertEquals(String.format("offset%d", i + 5), ps.get(i).name);
+    }
   }
 
   // 한번 new해서 계속 재활용
