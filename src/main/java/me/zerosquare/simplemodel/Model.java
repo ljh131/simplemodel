@@ -82,50 +82,50 @@ public class Model {
     return -1;
   }
 
-  public Model select(String selectClause, Object... args) {
+  public <T extends Model> T select(String selectClause, Object... args) {
 		String c = String.format(selectClause, args);
     reservedSelect = c;
-    return this;
+    return (T)this;
   }
 
   private static final Pattern findJoinPattern = Pattern.compile("\\bjoin\\b", Pattern.CASE_INSENSITIVE);
 
-  public Model joins(String joinClause, Object... args) {
+  public <T extends Model> T joins(String joinClause, Object... args) {
     if(!findJoinPattern.matcher(joinClause).find()) {
       joinClause = "JOIN " + joinClause;
     }
 
 		String c = String.format(joinClause, args);
     reservedJoin = c;
-    return this;
+    return (T)this;
   }
 
-  public Model order(String orderClause, Object... args) {
+  public <T extends Model> T order(String orderClause, Object... args) {
 		String c = String.format(orderClause, args);
     reservedOrderby = c;
-    return this;
+    return (T)this;
   }
 
-  public Model limit(long limitNumber) {
+  public <T extends Model> T limit(long limitNumber) {
 		String c = String.format("%d", limitNumber);
     reservedLimit = c;
-    return this;
+    return (T)this;
   }
 
-  public Model offset(long offsetNumber) {
+  public <T extends Model> T offset(long offsetNumber) {
 		String c = String.format("%d", offsetNumber);
     reservedOffset = c;
-    return this;
+    return (T)this;
   }
 
-  public Model resetWhere() {
+  public <T extends Model> T resetWhere() {
     reservedWhere = "";
     reservedWhereParams = new ArrayList<>();
-    return this;
+    return (T)this;
   }
 
-  public Model where(String whereClause, Object... args) {
-    if(StringUtils.isBlank(whereClause)) return this;
+  public <T extends Model> T where(String whereClause, Object... args) {
+    if(StringUtils.isBlank(whereClause)) return (T)this;
 
     reservedWhereParams.addAll(Arrays.asList(args));
 
@@ -134,7 +134,7 @@ public class Model {
     } else {
       reservedWhere += " and " + whereClause;
     }
-    return this;
+    return (T)this;
   }
 
   // returns empty list if no result found
@@ -343,9 +343,9 @@ public class Model {
   /** 
    * put column and value for create/update
    */
-  public Model put(String key, Object val) {
+  public <T extends Model> T put(String key, Object val) {
     objects.put(key, val);
-    return this;
+    return (T)this;
   }
 
   /**
