@@ -2,6 +2,7 @@ package me.zerosquare.simplemodel;
 
 import java.sql.*;
 import java.util.*;
+import java.time.*;
 import java.util.regex.*;
 import java.lang.annotation.*;
 import java.lang.reflect.*;
@@ -469,6 +470,10 @@ public class Model {
         pst.setString(colidx, (String)val);
       } else if(val instanceof Timestamp) {
         pst.setTimestamp(colidx, (Timestamp)val);
+      } else if(val instanceof java.sql.Date) {
+        pst.setDate(colidx, (java.sql.Date)val);
+      } else if(val instanceof LocalDate) {
+        pst.setDate(colidx, java.sql.Date.valueOf((LocalDate)val));
       } else {
         Logger.w("preparams - unrecognize type for val: %s", val.toString());
       }
