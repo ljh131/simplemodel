@@ -97,7 +97,7 @@ public class Model {
     }
 
 		String c = String.format(joinClause, args);
-    reservedJoin = c;
+    reservedJoin += " " + c;
     return (T)this;
   }
 
@@ -173,7 +173,7 @@ public class Model {
       ArrayList<Model> models = new ArrayList<>();
 
       while(rs.next()) {
-        Map<String, Object> m = new HashMap<>();
+        Map<String, Object> colvals = new HashMap<>();
 
         for(int col = 1; col <= cols; col++) {
           String table = meta.getTableName(col);
@@ -218,12 +218,12 @@ public class Model {
           if(!table.equals(tableName) && table.length() > 0) {
             key = String.format("%s.%s", table, key);
           }
-          m.put(key, val);
+          colvals.put(key, val);
         }
 
         Model model = newInstance();
         model.tableName = tableName;
-        model.objects = m;
+        model.columnValues = colvals;
         model.fillObjectsToAnnotation();
         models.add(model);
       }
@@ -345,7 +345,7 @@ public class Model {
    * put column and value for create/update
    */
   public <T extends Model> T put(String key, Object val) {
-    objects.put(key, val);
+    columnValues.put(key, val);
     return (T)this;
   }
 
@@ -353,7 +353,7 @@ public class Model {
    * get column value
    */
   public Object get(String columnName) {
-    return objects.get(columnName);
+    return columnValues.get(columnName);
   }
 
   /**
@@ -376,6 +376,10 @@ public class Model {
     return (long)get(columnName);
   }
 
+  public Map<String, Object> getColumnValues() {
+    return columnValues;
+  }
+
   public String getTableName() {
     return tableName;
   }
@@ -383,8 +387,8 @@ public class Model {
   public String dump() {
     String ds = "";
     ds += String.format("tableName: %s\n", tableName);
-    ds += String.format("objects:\n", tableName);
-    for (Map.Entry<String, Object> entry : objects.entrySet()) {
+    ds += String.format("columnValues:\n", tableName);
+    for (Map.Entry<String, Object> entry : columnValues.entrySet()) {
       String key = entry.getKey();
       Object value = entry.getValue();
       ds += String.format(" %s : %s\n", key, value);
@@ -416,7 +420,7 @@ public class Model {
     ArrayList<String> colnames = new ArrayList<>();
     ArrayList<Object> colvals = new ArrayList<>();
 
-    for (Map.Entry<String, Object> e : objects.entrySet()) {
+    for (Map.Entry<String, Object> e : columnValues.entrySet()) {
       String key = e.getKey();
       Object val = e.getValue();
       if(!isValidKeyValue(key, val)) continue;
@@ -619,8 +623,7 @@ public class Model {
 
   private String tableName;
 
-  // FIXME rename to columnValues
-  private Map<String, Object> objects = new HashMap<>();
+  private Map<String, Object> columnValues = new HashMap<>();
 
   private String reservedWhere = "";
   private ArrayList<Object> reservedWhereParams = new ArrayList<>();

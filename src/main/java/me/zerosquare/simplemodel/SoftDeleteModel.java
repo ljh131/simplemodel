@@ -17,13 +17,13 @@ public class SoftDeleteModel extends Model {
     return super.fetch();
   }
 
-  public Model includeDeleted() {
+  public <T extends Model> T includeDeleted() {
     return includeDeleted(true);
   }
 
-  public Model includeDeleted(boolean flag) {
+  public <T extends Model> T includeDeleted(boolean flag) {
     includeDeleted = flag;
-    return this;
+    return (T)this;
   }
 
   private boolean includeDeleted = false;
