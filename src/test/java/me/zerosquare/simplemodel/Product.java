@@ -28,4 +28,3 @@ public class Product extends SoftDeleteModel {
     }
   }
 }
-
