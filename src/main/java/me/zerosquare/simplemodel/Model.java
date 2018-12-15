@@ -9,10 +9,31 @@ import java.lang.reflect.*;
 import org.apache.commons.lang3.*;
 import org.apache.commons.lang3.tuple.*;
 
+/*
+TODO
+
+1.
+@BindId
+@BindColumn
+@BindCreaedAt
+
+2.
+@BindColumn(name="id", id=true)
+@BindColumn(name="created_at", createdAt=true)
+@BindColumn(name="updated_at", updatedAt=true)
+
+orm 사용시 execution 전에 orm을 column values로 가져오는 작업을 하는데 이 때 id, created_at 들도 가져오자. (중복이 발생하는데?)
+-> 가져와서 뭘 함??
+
+BindColumn시 name생략하면 필드명 사용?
+*/
+
 /**
-* ORM 사용시 주의사항
-long id필드가 있어야 한다. (update/delete시)
-bind되는 모든 field의 type은 primitive가 아니어야 한다.
+# ORM 사용시 주의사항
+
+- ~long id필드가 있어야 한다. (update/delete시)~
+- bind되는 모든 field의 type은 primitive가 아니어야 한다.
+- put으로 설정한 필드보다 ORM 필드가 우선한다. 즉 같은 이름의 필드가 put, ORM으로 둘 다 설정된 경우 ORM 값을 따른다.
  */
 public class Model {
   public static Model table(String tableName) {
@@ -44,9 +65,9 @@ public class Model {
   public long create() {
     beforeExecute(QueryType.INSERT);
 
-    fillObjectsFromAnnotation();
+    //fillObjectsFromAnnotation();
 
-    Pair<ArrayList<String>, ArrayList<Object>> nvs = buildColumnNameAndValues();
+    Pair<ArrayList<String>, ArrayList<Object>> nvs = data.buildColumnNameAndValues();
     ArrayList<String> colnames = nvs.getLeft();
     ArrayList<Object> colvals = nvs.getRight();
 
@@ -65,9 +86,13 @@ public class Model {
       if (rs.next()) {
         long generatedId = rs.getLong(1);
 
+        // FIXME
         // id를 obj와 annotation에 채우자
+        putId(generatedId);
+        /*
         put("id", generatedId);
         fillSingleObjectToAnnotation("id", generatedId);
+        */
 
         cleanUp(true);
         return generatedId;
@@ -223,8 +248,8 @@ public class Model {
 
         Model model = newInstance();
         model.tableName = tableName;
-        model.columnValues = colvals;
-        model.fillObjectsToAnnotation();
+        model.setColumnValues(colvals);
+        //model.fillObjectsToAnnotation();
         models.add(model);
       }
 
@@ -345,7 +370,7 @@ public class Model {
    * put column and value for create/update
    */
   public <T extends Model> T put(String key, Object val) {
-    columnValues.put(key, val);
+    data.put(key, val);
     return (T)this;
   }
 
@@ -353,13 +378,18 @@ public class Model {
    * get column value
    */
   public Object get(String columnName) {
-    return columnValues.get(columnName);
+    return data.get(columnName);
+  }
+
+  public void setColumnValues(Map<String, Object> colvals) {
+    data.setColumnValues(colvals);
   }
 
   /**
    * get column value named `id`
    */
   public Long getId() {
+    // FIXME
     Object o = get("id");
     return o != null ? Long.parseLong(o.toString()) : null;
   }
@@ -377,7 +407,7 @@ public class Model {
   }
 
   public Map<String, Object> getColumnValues() {
-    return columnValues;
+    return data.getColumnValues();
   }
 
   public String getTableName() {
@@ -387,12 +417,7 @@ public class Model {
   public String dump() {
     String ds = "";
     ds += String.format("tableName: %s\n", tableName);
-    ds += String.format("columnValues:\n", tableName);
-    for (Map.Entry<String, Object> entry : columnValues.entrySet()) {
-      String key = entry.getKey();
-      Object value = entry.getValue();
-      ds += String.format(" %s : %s\n", key, value);
-    }
+    ds += String.format("columnValues:\n", data.dump());
     return ds;
   }
 
@@ -414,36 +439,6 @@ public class Model {
       BindTable bc = (BindTable)annotation;
       this.tableName = bc.name();
     }
-  }
-
-  private Pair<ArrayList<String>, ArrayList<Object>> buildColumnNameAndValues() {
-    ArrayList<String> colnames = new ArrayList<>();
-    ArrayList<Object> colvals = new ArrayList<>();
-
-    for (Map.Entry<String, Object> e : columnValues.entrySet()) {
-      String key = e.getKey();
-      Object val = e.getValue();
-      if(!isValidKeyValue(key, val)) continue;
-
-      colnames.add(key);
-      colvals.add(val);
-    }
-
-    return new MutablePair<>(colnames, colvals);
-  }
-
-  // 유효하지 않은 k/v가 insert/update되지 않도록 스킵
-  private boolean isValidKeyValue(String key, Object val) {
-    if(key.equals("id") || key.equals("created_at")) {
-      return false;
-    }
-
-    if(val == null) {
-      //Logger.w("val is null! key '%s' is ignored for insert/update", key.toString());
-      return false;
-    }
-
-    return true;
   }
 
   /**
@@ -518,102 +513,6 @@ public class Model {
   private void cleanUp(boolean success) {
   }
 
-  private Long getIdFromAnnotation() {
-    Object o = this;
-    Field[] fields = o.getClass().getDeclaredFields();
-    for (Field field : fields) {
-      if (field.isAnnotationPresent(BindColumn.class)) {
-        BindColumn bc = field.getAnnotation(BindColumn.class);
-        if(bc.name().equals("id")) {
-          try {
-            return (Long)field.get(o);
-          } catch(IllegalAccessException e) {
-            Logger.warnException(e);
-          }
-        }
-      }
-    }
-    return null;
-  }
-
-  private void fillObjectsFromAnnotation() {
-    Object o = this;
-    Field[] fields = o.getClass().getDeclaredFields();
-    for (Field field : fields) {
-      if (field.isAnnotationPresent(BindColumn.class)) {
-        checkAnnotationField(field);
-
-        BindColumn bc = field.getAnnotation(BindColumn.class);
-
-        try {
-          Object val = field.get(o);
-          Logger.t("from annotation - %s : %s", bc.name(), val);
-          put(bc.name(), val);
-        } catch (IllegalAccessException e) {
-          // ignore me
-          Logger.warnException(e);
-        }
-      }
-    }
-  }
-
-  private void fillObjectsToAnnotation() {
-    Object o = this;
-    Field[] fields = o.getClass().getDeclaredFields();
-    for (Field field : fields) {
-      if (field.isAnnotationPresent(BindColumn.class)) {
-        checkAnnotationField(field);
-
-        BindColumn bc = field.getAnnotation(BindColumn.class);
-
-        try {
-          Object val = get(bc.name());
-          Logger.t("to annotation - %s : %s", bc.name(), val);
-          SetFieldValue(o, field, val);
-        } catch (IllegalArgumentException e) {
-          // ignore me
-          Logger.warnException(e);
-        }
-      }
-    }
-  }
-
-  private void fillSingleObjectToAnnotation(String name, Object val) {
-    Object o = this;
-    Field[] fields = o.getClass().getDeclaredFields();
-    for (Field field : fields) {
-      if (field.isAnnotationPresent(BindColumn.class)) {
-        BindColumn bc = field.getAnnotation(BindColumn.class);
-
-        if(bc.name().equals(name)) {
-          Logger.t("to annotation - %s : %s", name, val);
-          SetFieldValue(o, field, val);
-        }
-      }
-    }
-  }
-
-  private void SetFieldValue(Object o, Field field, Object val) {
-    // Integer를 Long에 넣을 수 있도록 한다.
-    try {
-      // TODO need more
-      if(val != null && field.getType() == Long.class && val instanceof Integer) {
-        field.set(o, Long.valueOf((Integer)val));
-      } else {
-        field.set(o, val);
-      }
-    } catch (IllegalAccessException e) {
-      // ignore me
-      Logger.warnException(e);
-    }
-  }
-
-  private void checkAnnotationField(Field field) {
-    if(field.getType().isPrimitive()) {
-      throw new RuntimeException(String.format("field '%s %s' should not be primitive!", field.getType().getName(), field.getName()));
-    }
-  }
-
   private String getReservedWhere() {
     if(StringUtils.isBlank(reservedWhere)) {
       throw new IllegalArgumentException("no where clause specified!");
@@ -621,9 +520,15 @@ public class Model {
     return reservedWhere;
   }
 
+  // hold values
+  private ModelData data;
   private String tableName;
-
+  /*
   private Map<String, Object> columnValues = new HashMap<>();
+  private Long id;
+  private Timestamp createdAt;
+  private Timestamp updatedAt;
+  */
 
   private String reservedWhere = "";
   private ArrayList<Object> reservedWhereParams = new ArrayList<>();

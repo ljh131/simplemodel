@@ -1,6 +1,8 @@
---drop table companies;
---drop table employees;
---drop table products;
+/*
+drop table companies;
+drop table employees;
+drop table products;
+*/
 
 create table companies (
   id int(11) not null auto_increment primary key,
