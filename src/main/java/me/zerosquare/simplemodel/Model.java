@@ -55,19 +55,24 @@ public class Model {
     DELETE
   }
 
-  // callback
-  protected void beforeExecute(QueryType type) {}
-  //protected abstract void afterExecute(QueryType type);
+  protected void beforeExecute(QueryType type) {
+    data.fromAnnotation();
+  }
+
+  protected void afterExecute(QueryType queryType, boolean success) {
+    if(success) {
+      data.toAnnotation();
+    }
+  }
 
   /**
    * @return generatedId if exists, otherwise 0 when success, -1 when error
    */
   public long create() {
-    beforeExecute(QueryType.INSERT);
+    QueryType queryType = QueryType.INSERT;
+    beforeExecute(queryType);
 
-    //fillObjectsFromAnnotation();
-
-    Pair<ArrayList<String>, ArrayList<Object>> nvs = data.buildColumnNameAndValues();
+    Pair<ArrayList<String>, ArrayList<Object>> nvs = data.buildColumnNameAndValues(QueryType.INSERT);
     ArrayList<String> colnames = nvs.getLeft();
     ArrayList<Object> colvals = nvs.getRight();
 
@@ -75,6 +80,7 @@ public class Model {
       StringUtils.join(colnames.toArray(), ','), 
       StringUtils.join(colnames.stream().map(e -> "?").toArray(), ','));
 
+    boolean success = false;
     Connector c = null;
     try {
       c = Connector.prepareStatement(q, true);
@@ -86,24 +92,18 @@ public class Model {
       if (rs.next()) {
         long generatedId = rs.getLong(1);
 
-        // FIXME
-        // id를 obj와 annotation에 채우자
-        putId(generatedId);
-        /*
-        put("id", generatedId);
-        fillSingleObjectToAnnotation("id", generatedId);
-        */
+        data.putId(generatedId);
 
-        cleanUp(true);
+        success = true;
         return generatedId;
       }
 
-      cleanUp(true);
       return 0;
     } catch(SQLException e) {
       Logger.warnException(e);
     } finally {
       if(c != null) { c.close(); }
+      afterExecute(queryType, success);
     }
     return -1;
   }
@@ -249,11 +249,10 @@ public class Model {
         Model model = newInstance();
         model.tableName = tableName;
         model.setColumnValues(colvals);
-        //model.fillObjectsToAnnotation();
+        model.data.toAnnotation();
         models.add(model);
       }
 
-      cleanUp(true);
       return (List<T>)models;
     } catch(SQLException e) {
       Logger.warnException(e);
@@ -286,12 +285,12 @@ public class Model {
 
   // returns affected row count
   public int update() {
-    beforeExecute(QueryType.UPDATE);
+    QueryType queryType = QueryType.UPDATE;
+    beforeExecute(queryType);
 
     reserveDefaultWhereForUpdate();
-    fillObjectsFromAnnotation();
 
-    Pair<ArrayList<String>, ArrayList<Object>> nvs = buildColumnNameAndValues();
+    Pair<ArrayList<String>, ArrayList<Object>> nvs = data.buildColumnNameAndValues(QueryType.UPDATE);
     ArrayList<String> colnames = nvs.getLeft();
     ArrayList<Object> colvals = nvs.getRight();
 
@@ -299,6 +298,7 @@ public class Model {
       StringUtils.join(colnames.stream().map(c -> String.format("%s=?", c)).toArray(), ','),
       getReservedWhere());
 
+    boolean success = false;
     Connector c = null;
     try {
       c = Connector.prepareStatement(q, true);
@@ -306,12 +306,13 @@ public class Model {
       int last = addParameters(pst, 0, colvals);
       addParameters(pst, last, reservedWhereParams);
 
-      cleanUp(true);
+      success = true;
       return pst.executeUpdate();
     } catch(SQLException e) {
       Logger.warnException(e);
     } finally {
       if(c != null) { c.close(); }
+      afterExecute(queryType, success);
     }
     return -1;
   }
@@ -343,27 +344,34 @@ public class Model {
   }
 
   public int delete() {
-    beforeExecute(QueryType.DELETE);
+    QueryType queryType = QueryType.DELETE;
+    beforeExecute(queryType);
 
     reserveDefaultWhereForUpdate();
 
     String q = String.format("DELETE FROM %s WHERE %s", tableName, 
       getReservedWhere());
 
+    boolean success = false;
     Connector c = null;
     try {
       c = Connector.prepareStatement(q, false);
       PreparedStatement pst = c.getPreparedStatement();
       addParameters(pst, 0, reservedWhereParams);
 
-      cleanUp(true);
+      success = true;
       return pst.executeUpdate();
     } catch(SQLException e) {
       Logger.warnException(e);
     } finally {
       if(c != null) { c.close(); }
+      afterExecute(queryType, success);
     }
     return 0;
+  }
+
+  public void setColumnValues(Map<String, Object> colvals) {
+    data.setColumnValues(colvals);
   }
 
   /** 
@@ -381,19 +389,6 @@ public class Model {
     return data.get(columnName);
   }
 
-  public void setColumnValues(Map<String, Object> colvals) {
-    data.setColumnValues(colvals);
-  }
-
-  /**
-   * get column value named `id`
-   */
-  public Long getId() {
-    // FIXME
-    Object o = get("id");
-    return o != null ? Long.parseLong(o.toString()) : null;
-  }
-
   public String getString(String columnName) {
     return (String)get(columnName);
   }
@@ -404,6 +399,10 @@ public class Model {
 
   public long getLong(String columnName) {
     return (long)get(columnName);
+  }
+
+  public Long getId() {
+    return data.getId();
   }
 
   public Map<String, Object> getColumnValues() {
@@ -488,14 +487,7 @@ public class Model {
 
   // update/delete시 조건문을 지정하지 않을 경우 사용하는 where절
   private String makeDefaultWhereForUpdate() {
-    Long id = getId();
-    if(id == null) {
-      id = getIdFromAnnotation();
-      if(id == null) {
-        // TODO throws new Exception();
-      }
-    }
-
+    Long id = data.getId();
     String defaultWhere = makeWhereWithFindId(id);
     return defaultWhere;
   }
@@ -507,12 +499,6 @@ public class Model {
     return where;
   }
 
-  /**
-   * clean up after every query
-   */
-  private void cleanUp(boolean success) {
-  }
-
   private String getReservedWhere() {
     if(StringUtils.isBlank(reservedWhere)) {
       throw new IllegalArgumentException("no where clause specified!");
@@ -520,15 +506,8 @@ public class Model {
     return reservedWhere;
   }
 
-  // hold values
-  private ModelData data;
   private String tableName;
-  /*
-  private Map<String, Object> columnValues = new HashMap<>();
-  private Long id;
-  private Timestamp createdAt;
-  private Timestamp updatedAt;
-  */
+  private ModelData data = new ModelData(this);
 
   private String reservedWhere = "";
   private ArrayList<Object> reservedWhereParams = new ArrayList<>();
