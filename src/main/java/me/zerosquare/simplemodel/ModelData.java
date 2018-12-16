@@ -1,14 +1,33 @@
 package me.zerosquare.simplemodel;
 
+import java.awt.image.AreaAveragingScaleFilter;
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
+import me.zerosquare.simplemodel.Model.QueryType;
+
+/*
+특수한 컬럼들은 아래와 같이 사용된다.
+annotation이 있으면 이를 사용하고, 그렇지 않으면 preset name을 사용한다.
+
+- id
+create시 해당 이름의 컬럼으로 generated id를 받음
+update/delete시 해당 이름의 컬럼을 where에 사용
+find시 해당 이름의 컬럼을 where에 사용
+
+- created_at
+create시 해당 이름의 컬럼이 현재 시각으로 insert됨
+
+- updated_at
+update시 해당 이름의 컬럼이 현재 시각으로 update됨
+*/
 public class ModelData {
 
   public ModelData(Model m) {
@@ -31,7 +50,20 @@ public class ModelData {
     return columnValues.get(key);
   }
 
-  public Pair<ArrayList<String>, ArrayList<Object>> buildColumnNameAndValues() {
+  public void putId(Long id) {
+    idColumnValue.value(id);
+    put(COLUMN_NAME_ID, id);
+  }
+
+  public Long getId() {
+    if(idColumnValue.value() != null) return (Long) idColumnValue.value();
+
+    Object o = get(COLUMN_NAME_ID);
+    return o != null ? Long.parseLong(o.toString()) : null;
+  }
+
+  // FIXME return ArrayList<Pair<String. Object>>
+  public Pair<ArrayList<String>, ArrayList<Object>> buildColumnNameAndValues(Model.QueryType queryType) {
     ArrayList<String> colnames = new ArrayList<>();
     ArrayList<Object> colvals = new ArrayList<>();
 
@@ -42,6 +74,15 @@ public class ModelData {
 
       colnames.add(key);
       colvals.add(val);
+    }
+
+    // add created at and updated at
+    if(queryType == QueryType.INSERT) {
+      colnames.add(createdAtColumnValue.column());
+      colvals.add(new Timestamp(System.currentTimeMillis()));
+    } else if(queryType == QueryType.UPDATE) {
+      colnames.add(updatedAtColumnValue.column());
+      colvals.add(new Timestamp(System.currentTimeMillis()));
     }
 
     return new MutablePair<>(colnames, colvals);
@@ -60,7 +101,12 @@ public class ModelData {
   // 유효하지 않은 k/v가 insert/update되지 않도록 스킵
   private boolean isValidKeyValue(String key, Object val) {
     // FIXME
-    if(key.equals("id") || key.equals("created_at")) {
+    if(key.equals(COLUMN_NAME_ID) || 
+      key.equals(COLUMN_NAME_CREATED_AT) || 
+      key.equals(COLUMN_NAME_UPDATED_AT) ||
+      (idColumnValue != null && key.equals(idColumnValue.column())) || 
+      (createdAtColumnValue != null && key.equals(createdAtColumnValue.column())) || 
+      (updatedAtColumnValue != null && key.equals(updatedAtColumnValue.column()))) {
       return false;
     }
 
@@ -72,6 +118,7 @@ public class ModelData {
     return true;
   }
 
+  /*
   private Long getIdFromAnnotation() {
     Object o = this;
     Field[] fields = o.getClass().getDeclaredFields();
@@ -90,8 +137,9 @@ public class ModelData {
     }
     return null;
   }
+  */
 
-  private void fromAnnotation() {
+  public void fromAnnotation() {
     Object o = model;
     Field[] fields = o.getClass().getDeclaredFields();
     for (Field field : fields) {
@@ -104,6 +152,17 @@ public class ModelData {
           Object val = field.get(o);
           Logger.t("from annotation - %s : %s", bc.name(), val);
           put(bc.name(), val);
+
+          if(bc.id()) {
+            // FIXME
+            idColumnValue = new ColumnValue(bc.name(), val);
+          } else if(bc.createdAt()) {
+            // FIXME
+            createdAtColumnValue = new ColumnValue(bc.name(), val);
+          } else if(bc.updatedAt()) {
+            // FIXME
+            updatedAtColumnValue = new ColumnValue(bc.name(), val);
+          }
         } catch (IllegalAccessException e) {
           // ignore me
           Logger.warnException(e);
@@ -112,7 +171,7 @@ public class ModelData {
     }
   }
 
-  private void toAnnotation() {
+  public void toAnnotation() {
     Object o = model;
     Field[] fields = o.getClass().getDeclaredFields();
     for (Field field : fields) {
@@ -125,6 +184,18 @@ public class ModelData {
           Object val = get(bc.name());
           Logger.t("to annotation - %s : %s", bc.name(), val);
           setFieldValue(o, field, val);
+
+          if(bc.id()) {
+            // FIXME
+            setFieldValue(o, field, idColumnValue.value());
+          } else if(bc.createdAt()) {
+            // FIXME
+            setFieldValue(o, field, createdAtColumnValue.value());
+          } else if(bc.updatedAt()) {
+            // FIXME
+            setFieldValue(o, field, updatedAtColumnValue.value());
+          }
+
         } catch (IllegalArgumentException e) {
           // ignore me
           Logger.warnException(e);
@@ -134,19 +205,25 @@ public class ModelData {
   }
 
   /*
-  private void fillSingleObjectToAnnotation(String name, Object val) {
+  private Object getAnnotation(Function<BindColumn, Boolean> func) {
     Object o = model;
     Field[] fields = o.getClass().getDeclaredFields();
     for (Field field : fields) {
       if (field.isAnnotationPresent(BindColumn.class)) {
         BindColumn bc = field.getAnnotation(BindColumn.class);
 
-        if(bc.name().equals(name)) {
-          Logger.t("to annotation - %s : %s", name, val);
-          setFieldValue(o, field, val);
+        if(func.apply(bc)) {
+          try {
+            Object val = field.get(o);
+            return val;
+          } catch (IllegalArgumentException | IllegalAccessException e) {
+            // ignore me
+            Logger.warnException(e);
+          }
         }
       }
     }
+    return null;
   }
   */
 
@@ -175,8 +252,18 @@ public class ModelData {
 
   private Map<String, Object> columnValues = new HashMap<>();
 
+  private static final String COLUMN_NAME_ID = "id";
+  private static final String COLUMN_NAME_CREATED_AT = "created_at";
+  private static final String COLUMN_NAME_UPDATED_AT = "updated_at";
+
+  private ColumnValue idColumnValue = new ColumnValue(COLUMN_NAME_ID, null);
+  private ColumnValue createdAtColumnValue = new ColumnValue(COLUMN_NAME_CREATED_AT, null);
+  private ColumnValue updatedAtColumnValue = new ColumnValue(COLUMN_NAME_UPDATED_AT, null);
+
+  /*
   private Long id;
   private Timestamp createdAt;
   private Timestamp updatedAt;
+  */
 
 }
