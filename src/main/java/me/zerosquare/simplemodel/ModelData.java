@@ -51,12 +51,18 @@ public class ModelData {
   }
 
   public void putId(Long id) {
-    idColumnValue.value(id);
+    if(idColumnValue == null) {
+      idColumnValue = new ColumnValue("id", id);
+    } else {
+      idColumnValue.value(id);
+    }
     put(COLUMN_NAME_ID, id);
   }
 
   public Long getId() {
-    if(idColumnValue.value() != null) return (Long) idColumnValue.value();
+    if(idColumnValue != null && idColumnValue.value() != null) {
+      return (Long) idColumnValue.value();
+    }
 
     Object o = get(COLUMN_NAME_ID);
     return o != null ? Long.parseLong(o.toString()) : null;
@@ -77,10 +83,10 @@ public class ModelData {
     }
 
     // add created at and updated at
-    if(queryType == QueryType.INSERT) {
+    if(queryType == QueryType.INSERT && createdAtColumnValue != null) {
       colnames.add(createdAtColumnValue.column());
       colvals.add(new Timestamp(System.currentTimeMillis()));
-    } else if(queryType == QueryType.UPDATE) {
+    } else if(queryType == QueryType.UPDATE && updatedAtColumnValue != null) {
       colnames.add(updatedAtColumnValue.column());
       colvals.add(new Timestamp(System.currentTimeMillis()));
     }
@@ -256,9 +262,9 @@ public class ModelData {
   private static final String COLUMN_NAME_CREATED_AT = "created_at";
   private static final String COLUMN_NAME_UPDATED_AT = "updated_at";
 
-  private ColumnValue idColumnValue = new ColumnValue(COLUMN_NAME_ID, null);
-  private ColumnValue createdAtColumnValue = new ColumnValue(COLUMN_NAME_CREATED_AT, null);
-  private ColumnValue updatedAtColumnValue = new ColumnValue(COLUMN_NAME_UPDATED_AT, null);
+  private ColumnValue idColumnValue;
+  private ColumnValue createdAtColumnValue;
+  private ColumnValue updatedAtColumnValue;
 
   /*
   private Long id;
