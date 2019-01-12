@@ -9,6 +9,8 @@ import java.lang.reflect.*;
 import org.apache.commons.lang3.*;
 import org.apache.commons.lang3.tuple.*;
 
+import javax.management.Query;
+
 /*
 TODO
 
@@ -55,14 +57,19 @@ public class Model {
     DELETE
   }
 
-  protected void beforeExecute(QueryType type) {
+  protected void beforeExecute(QueryType type) {}
+  protected void afterExecute(QueryType type, boolean success) {}
+
+  private final void _beforeExecute(QueryType queryType) {
+    beforeExecute(queryType);
     data.fromAnnotation();
   }
 
-  protected void afterExecute(QueryType queryType, boolean success) {
+  private final void _afterExecute(QueryType queryType, boolean success) {
     if(success) {
       data.toAnnotation();
     }
+    afterExecute(queryType, success);
   }
 
   /**
@@ -70,7 +77,7 @@ public class Model {
    */
   public long create() {
     QueryType queryType = QueryType.INSERT;
-    beforeExecute(queryType);
+    _beforeExecute(queryType);
 
     Pair<ArrayList<String>, ArrayList<Object>> nvs = data.buildColumnNameAndValues(QueryType.INSERT);
     ArrayList<String> colnames = nvs.getLeft();
@@ -103,7 +110,7 @@ public class Model {
       Logger.warnException(e);
     } finally {
       if(c != null) { c.close(); }
-      afterExecute(queryType, success);
+      _afterExecute(queryType, success);
     }
     return -1;
   }
@@ -165,7 +172,8 @@ public class Model {
 
   // returns empty list if no result found
   public <T extends Model> List<T> fetch() {
-    beforeExecute(QueryType.SELECT);
+    QueryType queryType = QueryType.SELECT;
+    _beforeExecute(queryType);
 
     String q = String.format("SELECT %s from %s", 
         reservedSelect.isEmpty() ? "*" : reservedSelect, 
@@ -186,6 +194,7 @@ public class Model {
       q += String.format(" OFFSET %s", reservedOffset);
     }
 
+    boolean success = false;
     Connector c = null;
     try {
       c = Connector.prepareStatement(q, false);
@@ -253,11 +262,13 @@ public class Model {
         models.add(model);
       }
 
+      success = true;
       return (List<T>)models;
     } catch(SQLException e) {
       Logger.warnException(e);
     } finally {
       if(c != null) { c.close(); }
+      _afterExecute(queryType, success);
     }
 
     return null;
@@ -286,7 +297,7 @@ public class Model {
   // returns affected row count
   public int update() {
     QueryType queryType = QueryType.UPDATE;
-    beforeExecute(queryType);
+    _beforeExecute(queryType);
 
     reserveDefaultWhereForUpdate();
 
@@ -312,7 +323,7 @@ public class Model {
       Logger.warnException(e);
     } finally {
       if(c != null) { c.close(); }
-      afterExecute(queryType, success);
+      _afterExecute(queryType, success);
     }
     return -1;
   }
@@ -345,7 +356,7 @@ public class Model {
 
   public int delete() {
     QueryType queryType = QueryType.DELETE;
-    beforeExecute(queryType);
+    _beforeExecute(queryType);
 
     reserveDefaultWhereForUpdate();
 
@@ -365,7 +376,7 @@ public class Model {
       Logger.warnException(e);
     } finally {
       if(c != null) { c.close(); }
-      afterExecute(queryType, success);
+      _afterExecute(queryType, success);
     }
     return 0;
   }
