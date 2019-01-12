@@ -11,7 +11,7 @@ public class SimpleModelTest {
   @BeforeClass
   public static void tearUp() {
     Logger.i("tear up SimpleModelTest");
-    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel", "simplemodeluser", "simplemodeluserpw");
+    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=false", "simplemodeluser", "simplemodeluserpw");
   }
 
   @AfterClass
