@@ -11,32 +11,6 @@ import org.apache.commons.lang3.tuple.*;
 
 import javax.management.Query;
 
-/*
-TODO
-
-1.
-@BindId
-@BindColumn
-@BindCreaedAt
-
-2.
-@BindColumn(name="id", id=true)
-@BindColumn(name="created_at", createdAt=true)
-@BindColumn(name="updated_at", updatedAt=true)
-
-orm 사용시 execution 전에 orm을 column values로 가져오는 작업을 하는데 이 때 id, created_at 들도 가져오자. (중복이 발생하는데?)
--> 가져와서 뭘 함??
-
-BindColumn시 name생략하면 필드명 사용?
-*/
-
-/**
-# ORM 사용시 주의사항
-
-- ~long id필드가 있어야 한다. (update/delete시)~
-- bind되는 모든 field의 type은 primitive가 아니어야 한다.
-- put으로 설정한 필드보다 ORM 필드가 우선한다. 즉 같은 이름의 필드가 put, ORM으로 둘 다 설정된 경우 ORM 값을 따른다.
- */
 public class Model {
   public static Model table(String tableName) {
     return new Model(tableName);
@@ -60,12 +34,12 @@ public class Model {
   protected void beforeExecute(QueryType type) {}
   protected void afterExecute(QueryType type, boolean success) {}
 
-  private final void _beforeExecute(QueryType queryType) {
+  private void _beforeExecute(QueryType queryType) {
     beforeExecute(queryType);
     data.fromAnnotation();
   }
 
-  private final void _afterExecute(QueryType queryType, boolean success) {
+  private void _afterExecute(QueryType queryType, boolean success) {
     if(success) {
       data.toAnnotation();
     }
