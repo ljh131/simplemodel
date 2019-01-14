@@ -1,13 +1,12 @@
 package me.zerosquare.simplemodel;
 
-import java.awt.image.AreaAveragingScaleFilter;
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Function;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -109,15 +108,16 @@ public class ModelData {
     Object o = model;
     Field[] fields = o.getClass().getDeclaredFields();
     for (Field field : fields) {
-      if (field.isAnnotationPresent(BindColumn.class)) {
+      if (field.isAnnotationPresent(Column.class)) {
         assertAnnotatedField(field);
 
-        BindColumn bc = field.getAnnotation(BindColumn.class);
+        Column bc = field.getAnnotation(Column.class);
+        String name = columnFieldName(bc, field);
 
         try {
           Object val = field.get(o);
-          Logger.t("from annotation - %s : %s", bc.name(), val);
-          put(bc.name(), val);
+          Logger.t("from annotation - %s : %s", name, val);
+          put(name, val);
         } catch (IllegalAccessException e) {
           // ignore me
           Logger.warnException(e);
@@ -130,14 +130,15 @@ public class ModelData {
     Object o = model;
     Field[] fields = o.getClass().getDeclaredFields();
     for (Field field : fields) {
-      if (field.isAnnotationPresent(BindColumn.class)) {
+      if (field.isAnnotationPresent(Column.class)) {
         assertAnnotatedField(field);
 
-        BindColumn bc = field.getAnnotation(BindColumn.class);
+        Column bc = field.getAnnotation(Column.class);
+        String name = columnFieldName(bc, field);
 
         try {
-          Object val = get(bc.name());
-          Logger.t("to annotation - %s : %s", bc.name(), val);
+          Object val = get(name);
+          Logger.t("to annotation - %s : %s", name, val);
           setFieldValue(o, field, val);
         } catch (IllegalArgumentException e) {
           // ignore me
@@ -145,6 +146,12 @@ public class ModelData {
         }
       }
     }
+  }
+
+  private String columnFieldName(Column col, Field field) {
+    String name = col.name();
+    if(StringUtils.isBlank(name)) name = field.getName();
+    return name;
   }
 
   /**
