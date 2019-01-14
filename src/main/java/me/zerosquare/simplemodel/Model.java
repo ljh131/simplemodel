@@ -5,11 +5,9 @@ import java.util.*;
 import java.time.*;
 import java.util.regex.*;
 import java.lang.annotation.*;
-import java.lang.reflect.*;
+
 import org.apache.commons.lang3.*;
 import org.apache.commons.lang3.tuple.*;
-
-import javax.management.Query;
 
 /**
  * use this class directly, or extends this class to use ORM
@@ -428,9 +426,9 @@ public class Model {
 
   private void trySetTableNameFromAnnotation() {
     Class c = this.getClass();
-    if (c.isAnnotationPresent(BindTable.class)) {
-      Annotation annotation = c.getAnnotation(BindTable.class);
-      BindTable bc = (BindTable)annotation;
+    if (c.isAnnotationPresent(Table.class)) {
+      Annotation annotation = c.getAnnotation(Table.class);
+      Table bc = (Table)annotation;
       this.tableName = bc.name();
     }
   }

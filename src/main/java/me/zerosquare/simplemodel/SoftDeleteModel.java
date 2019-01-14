@@ -9,7 +9,6 @@ public class SoftDeleteModel extends Model {
     return updateColumn("deleted_at", new Timestamp(System.currentTimeMillis()));
   }
 
-  // FIXME T should extends SoftDeleteModel?
   @Override
   public <T extends Model> List<T> fetch() {
     if(!includeDeleted) {

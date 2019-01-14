@@ -3,9 +3,8 @@ package me.zerosquare.simplemodel;
 import java.lang.annotation.*;
 import java.lang.reflect.*;
 
-@Target(ElementType.TYPE)
+@Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface BindTable {
-  String name();
+public @interface Column {
+  String name() default "";
 }
-

@@ -1,24 +1,20 @@
 package me.zerosquare.simplemodel;
 
-import java.util.*;
 import java.sql.*;
-import java.lang.reflect.*;
 
-import me.zerosquare.simplemodel.*;
-
-@BindTable(name = "products")
+@Table(name = "products")
 public class Product extends SoftDeleteModel {
   // should be exists for update/delete
-  @BindColumn(name = "id")
+  @Column
   public Long id;
 
-  @BindColumn(name = "name")
+  @Column
   public String name;
 
-  @BindColumn(name = "price")
+  @Column
   public Integer price;
 
-  @BindColumn(name = "deleted_at")
+  @Column(name = "deleted_at")
   public Timestamp deletedAt;
 
   @Override
