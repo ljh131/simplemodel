@@ -7,9 +7,4 @@ import java.lang.reflect.*;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface BindColumn {
   String name();
-
-  // types
-  boolean id() default false;
-  boolean createdAt() default false;
-  boolean updatedAt() default false;
 }

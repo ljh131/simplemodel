@@ -35,20 +35,19 @@ public class ModelData {
     return columnValues.get(key);
   }
 
+  public Object get(String columnName, Object fallback) {
+    return containsKey(columnName) ? get(columnName) : fallback;
+  }
+
+  public boolean containsKey(String key) {
+    return columnValues.containsKey(key);
+  }
+
   public void putId(Long id) {
-    if(idColumnValue == null) {
-      idColumnValue = new ColumnValue("id", id);
-    } else {
-      idColumnValue.value(id);
-    }
     put(COLUMN_NAME_ID, id);
   }
 
   public Long getId() {
-    if(idColumnValue != null && idColumnValue.value() != null) {
-      return (Long) idColumnValue.value();
-    }
-
     Object o = get(COLUMN_NAME_ID);
     return o != null ? Long.parseLong(o.toString()) : null;
   }
@@ -67,12 +66,12 @@ public class ModelData {
     }
 
     // add created at and updated at
-    if(queryType == QueryType.INSERT && createdAtColumnValue != null) {
-      colnames.add(createdAtColumnValue.column());
-      colvals.add(new Timestamp(System.currentTimeMillis()));
-    } else if(queryType == QueryType.UPDATE && updatedAtColumnValue != null) {
-      colnames.add(updatedAtColumnValue.column());
-      colvals.add(new Timestamp(System.currentTimeMillis()));
+    if(queryType == QueryType.INSERT && containsKey(COLUMN_NAME_CREATED_AT)) {
+      colnames.add(COLUMN_NAME_CREATED_AT);
+      colvals.add(get(COLUMN_NAME_CREATED_AT, new Timestamp(System.currentTimeMillis())));
+    } else if(queryType == QueryType.UPDATE && containsKey(COLUMN_NAME_UPDATED_AT)) {
+      colnames.add(COLUMN_NAME_UPDATED_AT);
+      colvals.add(get(COLUMN_NAME_UPDATED_AT, new Timestamp(System.currentTimeMillis())));
     }
 
     return new MutablePair<>(colnames, colvals);
@@ -88,14 +87,13 @@ public class ModelData {
     return ds;
   }
 
-  // 유효하지 않은 k/v가 insert/update되지 않도록 스킵
+  /**
+   * to skip invalid columns when insert/update
+   */
   private boolean isValidKeyValue(String key, Object val) {
     if(key.equals(COLUMN_NAME_ID) ||
       key.equals(COLUMN_NAME_CREATED_AT) || 
-      key.equals(COLUMN_NAME_UPDATED_AT) ||
-      (idColumnValue != null && key.equals(idColumnValue.column())) || 
-      (createdAtColumnValue != null && key.equals(createdAtColumnValue.column())) || 
-      (updatedAtColumnValue != null && key.equals(updatedAtColumnValue.column()))) {
+      key.equals(COLUMN_NAME_UPDATED_AT)) {
       return false;
     }
 
@@ -120,14 +118,6 @@ public class ModelData {
           Object val = field.get(o);
           Logger.t("from annotation - %s : %s", bc.name(), val);
           put(bc.name(), val);
-
-          if(bc.id()) {
-            idColumnValue = new ColumnValue(bc.name(), val);
-          } else if(bc.createdAt()) {
-            createdAtColumnValue = new ColumnValue(bc.name(), val);
-          } else if(bc.updatedAt()) {
-            updatedAtColumnValue = new ColumnValue(bc.name(), val);
-          }
         } catch (IllegalAccessException e) {
           // ignore me
           Logger.warnException(e);
@@ -149,15 +139,6 @@ public class ModelData {
           Object val = get(bc.name());
           Logger.t("to annotation - %s : %s", bc.name(), val);
           setFieldValue(o, field, val);
-
-          if(bc.id()) {
-            setFieldValue(o, field, idColumnValue.value());
-          } else if(bc.createdAt()) {
-            setFieldValue(o, field, createdAtColumnValue.value());
-          } else if(bc.updatedAt()) {
-            setFieldValue(o, field, updatedAtColumnValue.value());
-          }
-
         } catch (IllegalArgumentException e) {
           // ignore me
           Logger.warnException(e);
@@ -167,7 +148,7 @@ public class ModelData {
   }
 
   /**
-   * Integer를 Long에 넣을 수 있도록 한다.
+   * let Integer be put in Long
    * @param o
    * @param field
    * @param val
@@ -196,27 +177,8 @@ public class ModelData {
 
   private Map<String, Object> columnValues = new HashMap<>();
 
-  /*
-  특수한 컬럼들은 아래와 같이 사용된다.
-  annotation이 있으면 이를 사용하고, 그렇지 않으면 preset name을 사용한다.
-
-  - id
-  create시 해당 이름의 컬럼으로 generated id를 받음
-  update/delete시 해당 이름의 컬럼을 where에 사용
-  find시 해당 이름의 컬럼을 where에 사용
-
-  - created_at
-  create시 해당 이름의 컬럼이 현재 시각으로 insert됨
-
-  - updated_at
-  update시 해당 이름의 컬럼이 현재 시각으로 update됨
-  */
   private static final String COLUMN_NAME_ID = "id";
   private static final String COLUMN_NAME_CREATED_AT = "created_at";
   private static final String COLUMN_NAME_UPDATED_AT = "updated_at";
-
-  private ColumnValue idColumnValue;
-  private ColumnValue createdAtColumnValue;
-  private ColumnValue updatedAtColumnValue;
 
 }
