@@ -1,4 +1,4 @@
-package me.zerosquare.simplemodel;
+package me.zerosquare.simplemodel.internal;
 
 import java.sql.*;
 

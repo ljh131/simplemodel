@@ -1,16 +1,17 @@
-package me.zerosquare.simplemodel;
+package me.zerosquare.simplemodel.internal;
+
+import me.zerosquare.simplemodel.Column;
+import me.zerosquare.simplemodel.Model;
+import me.zerosquare.simplemodel.Model.QueryType;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.MutablePair;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.MutablePair;
-import org.apache.commons.lang3.tuple.Pair;
-
-import me.zerosquare.simplemodel.Model.QueryType;
 
 public class ModelData {
 
