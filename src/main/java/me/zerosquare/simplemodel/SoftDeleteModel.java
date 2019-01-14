@@ -1,7 +1,7 @@
 package me.zerosquare.simplemodel;
 
-import java.util.*;
-import java.sql.*;
+import java.sql.Timestamp;
+import java.util.List;
 
 public class SoftDeleteModel extends Model {
   @Override

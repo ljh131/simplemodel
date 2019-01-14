@@ -2,6 +2,9 @@ package me.zerosquare.simplemodel;
 
 import java.util.*;
 import java.lang.reflect.*;
+
+import me.zerosquare.simplemodel.internal.Connector;
+import me.zerosquare.simplemodel.internal.Logger;
 import org.junit.*;
 import static org.junit.Assert.*;
 

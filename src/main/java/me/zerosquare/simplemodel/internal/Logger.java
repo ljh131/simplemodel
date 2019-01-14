@@ -1,10 +1,9 @@
-package me.zerosquare.simplemodel;
-
-import java.io.*;
-import java.util.Calendar;
-import java.util.GregorianCalendar;
+package me.zerosquare.simplemodel.internal;
 
 import org.slf4j.LoggerFactory;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
 
 public class Logger {
   final static org.slf4j.Logger logger = LoggerFactory.getLogger("simplemodel");

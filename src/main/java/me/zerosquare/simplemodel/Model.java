@@ -1,13 +1,16 @@
 package me.zerosquare.simplemodel;
 
-import java.sql.*;
-import java.util.*;
-import java.time.*;
-import java.util.regex.*;
-import java.lang.annotation.*;
+import me.zerosquare.simplemodel.internal.Connector;
+import me.zerosquare.simplemodel.internal.Logger;
+import me.zerosquare.simplemodel.internal.ModelData;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
-import org.apache.commons.lang3.*;
-import org.apache.commons.lang3.tuple.*;
+import java.lang.annotation.Annotation;
+import java.sql.*;
+import java.time.LocalDate;
+import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * use this class directly, or extends this class to use ORM
