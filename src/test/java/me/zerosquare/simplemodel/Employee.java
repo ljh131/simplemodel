@@ -6,7 +6,7 @@ import java.lang.reflect.*;
 import me.zerosquare.simplemodel.*;
 
 @BindTable(name = "employees")
-public class Employee extends Model{
+public class Employee extends Model {
   // should be exists for update/delete
   @BindColumn(name = "id")
   public Long id;

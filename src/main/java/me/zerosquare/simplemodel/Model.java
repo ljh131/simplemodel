@@ -11,6 +11,14 @@ import org.apache.commons.lang3.tuple.*;
 
 import javax.management.Query;
 
+/**
+ * use this class directly, or extends this class to use ORM
+ *
+ * # special columns
+ * special columns have predefined column names: id, created_at, updated_at
+ *  - id is returned by create and used by find/update/delete method. you must have this column in the table.
+ *  - created_at/updated_at are used when row created/updated. too use it, you should put created_at/updated_at with value(or null) or map in the ORM
+ */
 public class Model {
   public static Model table(String tableName) {
     return new Model(tableName);
@@ -268,7 +276,9 @@ public class Model {
     return findBy(makeWhereWithFindId(id));
   }
 
-  // returns affected row count
+  /**
+   * @return affected row count
+   */
   public int update() {
     QueryType queryType = QueryType.UPDATE;
     _beforeExecute(queryType);
@@ -426,7 +436,7 @@ public class Model {
   }
 
   /**
-   * @return 마지막으로 설정된 column index
+   * @return last set column index
    */
   private int addParameters(PreparedStatement pst, int lastColumnIndex, List<Object> vals) throws SQLException {
     int colidx = 0;
