@@ -13,14 +13,18 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 /**
- * use this class directly, or extends this class to use ORM
+ * Use this class directly, or extends this class to use ORM
  *
- * # special columns
- * special columns have predefined column names: id, created_at, updated_at
- *  - id is returned by create and used by find/update/delete method. you must have this column in the table.
- *  - created_at/updated_at are used when row created/updated. too use it, you should put created_at/updated_at with value(or null) or map in the ORM
+ * # Special columns
+ * Special columns have predefined column names: id, created_at, updated_at
+ *
+ *  - id is used by find and update/delete (only if where is not specified).
+ *    - If you want to use these methods, you should have id column in the table.
+ *  - created_at/updated_at are also stored when row is created/updated.
+ *    - If you want to store them, you should put created_at/updated_at with null value or map in the ORM
  */
 public class Model {
+
   public static Model table(String tableName) {
     return new Model(tableName);
   }
@@ -40,21 +44,6 @@ public class Model {
     DELETE
   }
 
-  protected void beforeExecute(QueryType type) {}
-  protected void afterExecute(QueryType type, boolean success) {}
-
-  private void _beforeExecute(QueryType queryType) {
-    beforeExecute(queryType);
-    data.fromAnnotation();
-  }
-
-  private void _afterExecute(QueryType queryType, boolean success) {
-    if(success) {
-      data.toAnnotation();
-    }
-    afterExecute(queryType, success);
-  }
-
   /**
    * @return generatedId if exists, otherwise 0 when success, -1 when error
    */
@@ -70,6 +59,7 @@ public class Model {
       StringUtils.join(colnames.toArray(), ','), 
       StringUtils.join(colnames.stream().map(e -> "?").toArray(), ','));
 
+    // FIXME use lambda for this template
     boolean success = false;
     Connector c = null;
     try {
@@ -284,8 +274,6 @@ public class Model {
     QueryType queryType = QueryType.UPDATE;
     _beforeExecute(queryType);
 
-    reserveDefaultWhereForUpdate();
-
     Pair<ArrayList<String>, ArrayList<Object>> nvs = data.buildColumnNameAndValues(QueryType.UPDATE);
     ArrayList<String> colnames = nvs.getLeft();
     ArrayList<Object> colvals = nvs.getRight();
@@ -343,9 +331,7 @@ public class Model {
     QueryType queryType = QueryType.DELETE;
     _beforeExecute(queryType);
 
-    reserveDefaultWhereForUpdate();
-
-    String q = String.format("DELETE FROM %s WHERE %s", tableName, 
+    String q = String.format("DELETE FROM %s WHERE %s", tableName,
       getReservedWhere());
 
     boolean success = false;
@@ -366,11 +352,7 @@ public class Model {
     return 0;
   }
 
-  public void setColumnValues(Map<String, Object> colvals) {
-    data.setColumnValues(colvals);
-  }
-
-  /** 
+  /**
    * put column and value for create/update
    */
   public <T extends Model> T put(String key, Object val) {
@@ -401,10 +383,6 @@ public class Model {
     return data.getId();
   }
 
-  public Map<String, Object> getColumnValues() {
-    return data.getColumnValues();
-  }
-
   public String getTableName() {
     return tableName;
   }
@@ -414,6 +392,33 @@ public class Model {
     ds += String.format("tableName: %s\n", tableName);
     ds += String.format("columnValues:\n", data.dump());
     return ds;
+  }
+
+  protected void beforeExecute(QueryType type) {}
+  protected void afterExecute(QueryType type, boolean success) {}
+
+  private void _beforeExecute(QueryType queryType) {
+    beforeExecute(queryType);
+    data.fromAnnotation();
+
+    if(queryType == QueryType.UPDATE || queryType == QueryType.DELETE) {
+      reserveDefaultWhereForUpdate();
+    }
+  }
+
+  private void _afterExecute(QueryType queryType, boolean success) {
+    if(success) {
+      data.toAnnotation();
+    }
+    afterExecute(queryType, success);
+  }
+
+  private void setColumnValues(Map<String, Object> colvals) {
+    data.setColumnValues(colvals);
+  }
+
+  private Map<String, Object> getColumnValues() {
+    return data.getColumnValues();
   }
 
   private Model newInstance() {
