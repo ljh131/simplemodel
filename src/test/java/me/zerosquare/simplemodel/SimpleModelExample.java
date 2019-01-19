@@ -1,5 +1,6 @@
 package me.zerosquare.simplemodel;
 
+import java.sql.SQLException;
 import java.util.*;
 import java.lang.reflect.*;
 
@@ -24,7 +25,7 @@ public class SimpleModelExample {
   }
 
   @Test
-  public void testExample() {
+  public void testExample() throws SQLException {
     /*
      * basic example without ORM
      */
@@ -67,7 +68,7 @@ public class SimpleModelExample {
   }
 
   @Test
-  public void testExample2() {
+  public void testExample2() throws SQLException {
     /*
      * basic example with ORM
      */
@@ -101,7 +102,7 @@ public class SimpleModelExample {
   }
 
   @Test
-  public void testExample3() {
+  public void testExample3() throws SQLException {
     /*
      * more examples
      */
