@@ -1,11 +1,12 @@
 package me.zerosquare.simplemodel;
 
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
 
 public class SoftDeleteModel extends Model {
   @Override
-  public int delete() {
+  public long delete() throws SQLException {
     return updateColumn("deleted_at", new Timestamp(System.currentTimeMillis()));
   }
 

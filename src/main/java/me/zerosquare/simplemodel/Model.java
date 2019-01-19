@@ -10,6 +10,7 @@ import java.lang.annotation.Annotation;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
@@ -47,7 +48,7 @@ public class Model {
   /**
    * @return generatedId if exists, otherwise 0 when success, -1 when error
    */
-  public long create() {
+  public long create() throws SQLException {
     QueryType queryType = QueryType.INSERT;
     _beforeExecute(queryType);
 
@@ -59,12 +60,7 @@ public class Model {
       StringUtils.join(colnames.toArray(), ','), 
       StringUtils.join(colnames.stream().map(e -> "?").toArray(), ','));
 
-    // FIXME use lambda for this template
-    boolean success = false;
-    Connector c = null;
-    try {
-      c = Connector.prepareStatement(q, true);
-      PreparedStatement pst = c.getPreparedStatement();
+    return execute(queryType, q, pst -> {
       addParameters(pst, 0, colvals);
 
       pst.executeUpdate();
@@ -74,18 +70,11 @@ public class Model {
 
         data.putId(generatedId);
 
-        success = true;
         return generatedId;
       }
 
-      return 0;
-    } catch(SQLException e) {
-      Logger.warnException(e);
-    } finally {
-      if(c != null) { c.close(); }
-      _afterExecute(queryType, success);
-    }
-    return -1;
+      return -1;
+    });
   }
 
   public <T extends Model> T select(String selectClause, Object... args) {
@@ -268,9 +257,9 @@ public class Model {
   }
 
   /**
-   * @return affected row count
+   * @return affected row count, -1 when error
    */
-  public int update() {
+  public long update() throws SQLException {
     QueryType queryType = QueryType.UPDATE;
     _beforeExecute(queryType);
 
@@ -282,74 +271,49 @@ public class Model {
       StringUtils.join(colnames.stream().map(c -> String.format("%s=?", c)).toArray(), ','),
       getReservedWhere());
 
-    boolean success = false;
-    Connector c = null;
-    try {
-      c = Connector.prepareStatement(q, true);
-      PreparedStatement pst = c.getPreparedStatement();
+    return execute(queryType, q, pst -> {
       int last = addParameters(pst, 0, colvals);
       addParameters(pst, last, reservedWhereParams);
 
-      success = true;
       return pst.executeUpdate();
-    } catch(SQLException e) {
-      Logger.warnException(e);
-    } finally {
-      if(c != null) { c.close(); }
-      _afterExecute(queryType, success);
-    }
-    return -1;
+    });
   }
 
   /**
    * update single column on db directly. (so it skips callback)
+   *
+   * @return affected row count, -1 when error
    */
-  public int updateColumn(String columnName, Object value) {
+  public long updateColumn(String columnName, Object value) throws SQLException {
     reserveDefaultWhereForUpdate();
 
     String q = String.format("UPDATE %s SET %s WHERE %s", tableName, 
       String.format("%s=?", columnName),
       getReservedWhere());
 
-    Connector c = null;
-    try {
-      c = Connector.prepareStatement(q, true);
-      PreparedStatement pst = c.getPreparedStatement();
+    return execute(null, q, pst -> {
       int last = addParameters(pst, 0, Arrays.asList(value));
       addParameters(pst, last, reservedWhereParams);
 
       return pst.executeUpdate();
-    } catch(SQLException e) {
-      Logger.warnException(e);
-    } finally {
-      if(c != null) { c.close(); }
-    }
-    return -1;
+    });
   }
 
-  public int delete() {
+  /**
+   * @return affected row count, -1 when error
+   */
+  public long delete() throws SQLException {
     QueryType queryType = QueryType.DELETE;
     _beforeExecute(queryType);
 
     String q = String.format("DELETE FROM %s WHERE %s", tableName,
       getReservedWhere());
 
-    boolean success = false;
-    Connector c = null;
-    try {
-      c = Connector.prepareStatement(q, false);
-      PreparedStatement pst = c.getPreparedStatement();
+    return execute(queryType, q, pst -> {
       addParameters(pst, 0, reservedWhereParams);
 
-      success = true;
       return pst.executeUpdate();
-    } catch(SQLException e) {
-      Logger.warnException(e);
-    } finally {
-      if(c != null) { c.close(); }
-      _afterExecute(queryType, success);
-    }
-    return 0;
+    });
   }
 
   /**
@@ -505,6 +469,31 @@ public class Model {
       throw new IllegalArgumentException("no where clause specified!");
     }
     return reservedWhere;
+  }
+
+  @FunctionalInterface
+  private interface ExecuteFunction {
+    long call(PreparedStatement pst) throws SQLException;
+  }
+
+  private long execute(QueryType queryType, String sql, ExecuteFunction functor) throws SQLException {
+    long result = -1;
+    Connector c = null;
+    try {
+      c = Connector.prepareStatement(sql, true);
+      PreparedStatement pst = c.getPreparedStatement();
+
+      result = functor.call(pst);
+    } catch(SQLException e) {
+      Logger.warnException(e);
+      throw e;
+    } finally {
+      if(c != null) { c.close(); }
+      if(queryType != null) {
+        _afterExecute(queryType, result >= 0);
+      }
+    }
+    return result;
   }
 
   private String tableName;
