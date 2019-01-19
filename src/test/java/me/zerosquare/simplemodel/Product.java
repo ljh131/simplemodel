@@ -4,7 +4,6 @@ import java.sql.*;
 
 @Table(name = "products")
 public class Product extends SoftDeleteModel {
-  // should be exists for update/delete
   @Column
   public Long id;
 
