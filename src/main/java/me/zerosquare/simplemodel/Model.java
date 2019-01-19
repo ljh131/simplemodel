@@ -316,6 +316,14 @@ public class Model {
     });
   }
 
+  public void setColumnValues(Map<String, Object> colvals) {
+    data.setColumnValues(colvals);
+  }
+
+  public Map<String, Object> getColumnValues() {
+    return data.getColumnValues();
+  }
+
   /**
    * put column and value for create/update
    */
@@ -375,14 +383,6 @@ public class Model {
       data.toAnnotation();
     }
     afterExecute(queryType, success);
-  }
-
-  private void setColumnValues(Map<String, Object> colvals) {
-    data.setColumnValues(colvals);
-  }
-
-  private Map<String, Object> getColumnValues() {
-    return data.getColumnValues();
   }
 
   private Model newInstance() {
