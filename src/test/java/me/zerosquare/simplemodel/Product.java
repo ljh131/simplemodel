@@ -13,6 +13,12 @@ public class Product extends SoftDeleteModel {
   @Column
   public Integer price;
 
+  @Column(name = "created_at")
+  public Timestamp createdAt;
+
+  @Column(name = "updated_at")
+  public Timestamp updatedAt;
+
   @Column(name = "deleted_at")
   public Timestamp deletedAt;
 
