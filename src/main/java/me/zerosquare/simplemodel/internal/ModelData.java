@@ -36,7 +36,8 @@ public class ModelData {
   }
 
   public Object get(String columnName, Object fallback) {
-    return containsKey(columnName) ? get(columnName) : fallback;
+    Object v = get(columnName);
+    return v != null ? v : fallback;
   }
 
   public boolean containsKey(String key) {

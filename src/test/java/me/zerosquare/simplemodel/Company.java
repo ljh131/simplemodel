@@ -1,7 +1,7 @@
 package me.zerosquare.simplemodel;
 
 @Table(name = "companies")
-public class Company extends Model{
+public class Company extends Model {
   @Column
   public Long id;
 
