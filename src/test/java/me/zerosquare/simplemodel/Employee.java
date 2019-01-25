@@ -1,23 +1,17 @@
 package me.zerosquare.simplemodel;
 
-import java.util.*;
-import java.lang.reflect.*;
-
-import me.zerosquare.simplemodel.*;
-
-@BindTable(name = "employees")
-public class Employee extends Model{
-  // should be exists for update/delete
-  @BindColumn(name = "id")
+@Table(name = "employees")
+public class Employee extends Model {
+  @Column
   public Long id;
 
-  @BindColumn(name = "company_id")
+  @Column(name = "company_id")
   public Long companyId;
 
-  @BindColumn(name = "name")
+  @Column
   public String name;
 
-  @BindColumn(name = "age")
+  @Column
   public Integer age;
 }
 

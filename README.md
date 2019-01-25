@@ -61,19 +61,19 @@ Model.table("employees").find(id).delete();
 ### with ORM
 Declare model class for desired table
 ```java
-@BindTable(name = "employees")
-public class Employee extends Model{
-  // should be exists for update/delete
-  @BindColumn(name = "id")
+@Table(name = "employees")
+public class Employee extends Model {
+  // special name column for convenience
+  @Column
   public Long id;
 
-  @BindColumn(name = "company_id")
+  @Column(name = "company_id")
   public Long companyId;
 
-  @BindColumn(name = "name")
+  @Column
   public String name;
 
-  @BindColumn(name = "age")
+  @Column
   public Integer age;
 }
 ```

@@ -1,7 +1,11 @@
 package me.zerosquare.simplemodel;
 
+import java.sql.SQLException;
 import java.util.*;
 import java.lang.reflect.*;
+
+import me.zerosquare.simplemodel.internal.Connector;
+import me.zerosquare.simplemodel.internal.Logger;
 import org.junit.*;
 import static org.junit.Assert.*;
 
@@ -11,7 +15,7 @@ public class SimpleModelExample {
   @BeforeClass
   public static void tearUp() {
     Logger.i("tear up SimpleModelTest");
-    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=true", "simplemodeluser", "simplemodeluserpw");
+    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=false", "simplemodeluser", "simplemodeluserpw");
   }
 
   @AfterClass
@@ -21,7 +25,7 @@ public class SimpleModelExample {
   }
 
   @Test
-  public void testExample() {
+  public void testExample() throws SQLException {
     /*
      * basic example without ORM
      */
@@ -64,7 +68,7 @@ public class SimpleModelExample {
   }
 
   @Test
-  public void testExample2() {
+  public void testExample2() throws SQLException {
     /*
      * basic example with ORM
      */
@@ -98,7 +102,7 @@ public class SimpleModelExample {
   }
 
   @Test
-  public void testExample3() {
+  public void testExample3() throws SQLException {
     /*
      * more examples
      */
