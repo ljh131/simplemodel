@@ -1,17 +1,23 @@
 package me.zerosquare.simplemodel;
 
-import java.util.*;
-import java.lang.reflect.*;
-import org.junit.*;
-import static org.junit.Assert.*;
+import me.zerosquare.simplemodel.internal.Connector;
+import me.zerosquare.simplemodel.internal.Logger;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-import me.zerosquare.simplemodel.*;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.UUID;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SimpleModelTest {
   @BeforeClass
   public static void tearUp() {
     Logger.i("tear up SimpleModelTest");
-    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=true", "simplemodeluser", "simplemodeluserpw");
+    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=false&zeroDateTimeBehavior=convertToNull", "simplemodeluser", "simplemodeluserpw");
   }
 
   @AfterClass
@@ -64,7 +70,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testUpdateColumn() {
+  public void testUpdateColumn() throws SQLException {
     String name = makeName();
 
     // insert
@@ -128,7 +134,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testOffset() {
+  public void testOffset() throws SQLException {
     int price = (int)(System.currentTimeMillis() / 1000);
 
     Product np = new Product();
@@ -236,7 +242,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testJoin() {
+  public void testJoin() throws SQLException {
     // insert
     Model c = Model.table("companies");
     c.put("name", "join company");
@@ -269,7 +275,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testJoinORM() {
+  public void testJoinORM() throws SQLException {
     // insert
     Company c = new Company();
     c.name = "join company";
@@ -303,7 +309,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testFindWithJoin() {
+  public void testFindWithJoin() throws SQLException {
     // insert
     Company c = new Company();
     c.name = "join company";
