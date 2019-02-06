@@ -133,7 +133,7 @@ public class Model {
   }
 
   // returns empty list if no result found
-  public <T extends Model> List<T> fetch() {
+  public <T extends Model> List<T> fetch() throws SQLException {
     QueryType queryType = QueryType.SELECT;
     _beforeExecute(queryType);
 
@@ -228,31 +228,30 @@ public class Model {
       return (List<T>)models;
     } catch(SQLException e) {
       Logger.warnException(e);
+      throw e;
     } finally {
       if(c != null) { c.close(); }
       _afterExecute(queryType, success);
     }
-
-    return null;
   }
 
   /**
    * This method is helpful for these kind of queries - `select count(id) ...`
    * Note that it does not use `limit 1`.
    */
-  public <T extends Model> T fetchFirst() {
+  public <T extends Model> T fetchFirst() throws SQLException {
     return (T)fetch().get(0);
   }
 
   // returns null if no result
-  public <T extends Model> T findBy(String whereClause, Object... args) {
+  public <T extends Model> T findBy(String whereClause, Object... args) throws SQLException {
     List<Model> r = where(whereClause, args).limit(1).fetch();
     if(r == null || r.size() == 0) return null;
     return (T)r.get(0);
   }
 
   // returns null if no result
-  public <T extends Model> T find(long id) {
+  public <T extends Model> T find(long id) throws SQLException {
     return findBy(makeWhereWithFindId(id));
   }
 
