@@ -1,5 +1,6 @@
-package me.zerosquare.simplemodel;
+package me.zerosquare.simplemodel.test;
 
+import me.zerosquare.simplemodel.Model;
 import me.zerosquare.simplemodel.internal.Connector;
 import me.zerosquare.simplemodel.internal.Logger;
 import org.junit.AfterClass;

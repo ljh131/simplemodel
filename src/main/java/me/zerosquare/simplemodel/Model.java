@@ -2,7 +2,6 @@ package me.zerosquare.simplemodel;
 
 import me.zerosquare.simplemodel.internal.Connector;
 import me.zerosquare.simplemodel.internal.Logger;
-import me.zerosquare.simplemodel.internal.ModelData;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -131,62 +130,6 @@ public class Model {
     return (T)this;
   }
 
-  // FIXME extract to other class
-  private Map<String, Object> getFromResultSet(ResultSet rs) throws SQLException {
-    Map<String, Object> colvals = new HashMap<>();
-
-    ResultSetMetaData meta = rs.getMetaData();
-    int cols = meta.getColumnCount();
-
-    for(int col = 1; col <= cols; col++) {
-      String table = meta.getTableName(col);
-      String key = meta.getColumnName(col);
-      int type = meta.getColumnType(col);
-      Object val;
-
-      // TODO need more
-      switch(type) {
-        case Types.BIT:
-        case Types.TINYINT:
-        case Types.BOOLEAN:
-          val = rs.getBoolean(col);
-          break;
-
-        case Types.SMALLINT:
-        case Types.INTEGER:
-          val = rs.getInt(col);
-          break;
-
-        case Types.BIGINT:
-          val = rs.getLong(col);
-          break;
-
-        case Types.VARCHAR:
-        case Types.LONGVARCHAR:
-          val = rs.getString(col);
-          break;
-
-        case Types.TIMESTAMP:
-          val = rs.getTimestamp(col);
-          break;
-
-        default:
-          throw new RuntimeException(String.format("Unknown column type! %s(%d) %s on column %s",
-                  meta.getColumnTypeName(col), type, meta.getColumnClassName(col), key));
-      }
-
-      Logger.t("fetched - table: %s key: %s type: %s val: %s",
-              table, key, type, val == null ? "(null)" : val.toString());
-
-      if(!table.equals(tableName) && table.length() > 0) {
-        key = String.format("%s.%s", table, key);
-      }
-      colvals.put(key, val);
-    }
-
-    return colvals;
-  }
-
   // returns empty list if no result found
   public <T extends Model> List<T> fetch() throws SQLException {
     QueryType queryType = QueryType.SELECT;
@@ -217,12 +160,12 @@ public class Model {
       ArrayList<Model> models = new ArrayList<>();
 
       while(rs.next()) {
-        Map<String, Object> colvals = getFromResultSet(rs);
+        Map<String, Object> colvals = data.getFromResultSet(tableName, rs);
 
         Model model = newInstance();
         model.tableName = tableName;
         model.setColumnValues(colvals);
-        model.data.toAnnotation();
+        model.data.toAnnotation(model);
         models.add(model);
       }
 
@@ -366,7 +309,7 @@ public class Model {
 
   private void _beforeExecute(QueryType queryType) {
     beforeExecute(queryType);
-    data.fromAnnotation();
+    data.fromAnnotation(this);
 
     if(queryType == QueryType.UPDATE || queryType == QueryType.DELETE) {
       reserveDefaultWhereForUpdate();
@@ -375,7 +318,7 @@ public class Model {
 
   private void _afterExecute(QueryType queryType, boolean success) {
     if(success) {
-      data.toAnnotation();
+      data.toAnnotation(this);
     }
     afterExecute(queryType, success);
   }
@@ -522,8 +465,9 @@ public class Model {
     return result.getResult();
   }
 
+  private ModelData data = new ModelData();
+
   private String tableName;
-  private ModelData data = new ModelData(this);
 
   private String reservedWhere = "";
   private ArrayList<Object> reservedWhereParams = new ArrayList<>();

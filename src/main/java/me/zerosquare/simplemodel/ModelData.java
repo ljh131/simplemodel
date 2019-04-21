@@ -1,59 +1,54 @@
-package me.zerosquare.simplemodel.internal;
+package me.zerosquare.simplemodel;
 
-import me.zerosquare.simplemodel.Column;
-import me.zerosquare.simplemodel.Model;
 import me.zerosquare.simplemodel.Model.QueryType;
+import me.zerosquare.simplemodel.internal.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.lang.reflect.Field;
-import java.sql.Timestamp;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 public class ModelData {
 
-  public ModelData(Model m) {
-    this.model = m;
-  }
-
-  public void setColumnValues(Map<String, Object> colvals) {
+  void setColumnValues(Map<String, Object> colvals) {
     columnValues = colvals;
   }
 
-  public Map<String, Object> getColumnValues() {
+  Map<String, Object> getColumnValues() {
     return columnValues;
   }
 
-  public void put(String key, Object val) {
+  void put(String key, Object val) {
     columnValues.put(key, val);
   }
 
-  public Object get(String key) {
+  Object get(String key) {
     return columnValues.get(key);
   }
 
-  public Object get(String columnName, Object fallback) {
+  Object get(String columnName, Object fallback) {
     Object v = get(columnName);
     return v != null ? v : fallback;
   }
 
-  public boolean containsKey(String key) {
+  boolean containsKey(String key) {
     return columnValues.containsKey(key);
   }
 
-  public void putId(Long id) {
+  void putId(Long id) {
     put(COLUMN_NAME_ID, id);
   }
 
-  public Long getId() {
+  Long getId() {
     Object o = get(COLUMN_NAME_ID);
     return o != null ? Long.parseLong(o.toString()) : null;
   }
 
-  public Pair<ArrayList<String>, ArrayList<Object>> buildColumnNameAndValues(Model.QueryType queryType) {
+  Pair<ArrayList<String>, ArrayList<Object>> buildColumnNameAndValues(Model.QueryType queryType) {
     ArrayList<String> colnames = new ArrayList<>();
     ArrayList<Object> colvals = new ArrayList<>();
 
@@ -78,7 +73,62 @@ public class ModelData {
     return new MutablePair<>(colnames, colvals);
   }
 
-  public String dump() {
+  Map<String, Object> getFromResultSet(String tableName, ResultSet rs) throws SQLException {
+    Map<String, Object> colvals = new HashMap<>();
+
+    ResultSetMetaData meta = rs.getMetaData();
+    int cols = meta.getColumnCount();
+
+    for(int col = 1; col <= cols; col++) {
+      String table = meta.getTableName(col);
+      String key = meta.getColumnName(col);
+      int type = meta.getColumnType(col);
+      Object val;
+
+      // TODO need more
+      switch(type) {
+        case Types.BIT:
+        case Types.TINYINT:
+        case Types.BOOLEAN:
+          val = rs.getBoolean(col);
+          break;
+
+        case Types.SMALLINT:
+        case Types.INTEGER:
+          val = rs.getInt(col);
+          break;
+
+        case Types.BIGINT:
+          val = rs.getLong(col);
+          break;
+
+        case Types.VARCHAR:
+        case Types.LONGVARCHAR:
+          val = rs.getString(col);
+          break;
+
+        case Types.TIMESTAMP:
+          val = rs.getTimestamp(col);
+          break;
+
+        default:
+          throw new RuntimeException(String.format("Unknown column type! %s(%d) %s on column %s",
+                  meta.getColumnTypeName(col), type, meta.getColumnClassName(col), key));
+      }
+
+      Logger.t("fetched - table: %s key: %s type: %s val: %s",
+              table, key, type, val == null ? "(null)" : val.toString());
+
+      if(!table.equals(tableName) && table.length() > 0) {
+        key = String.format("%s.%s", table, key);
+      }
+      colvals.put(key, val);
+    }
+
+    return colvals;
+  }
+
+  String dump() {
     String ds = "";
     for (Map.Entry<String, Object> entry : columnValues.entrySet()) {
       String key = entry.getKey();
@@ -106,8 +156,7 @@ public class ModelData {
     return true;
   }
 
-  public void fromAnnotation() {
-    Object o = model;
+  void fromAnnotation(Object o) {
     Field[] fields = o.getClass().getDeclaredFields();
     for (Field field : fields) {
       if (field.isAnnotationPresent(Column.class)) {
@@ -128,8 +177,7 @@ public class ModelData {
     }
   }
 
-  public void toAnnotation() {
-    Object o = model;
+  void toAnnotation(Object o) {
     Field[] fields = o.getClass().getDeclaredFields();
     for (Field field : fields) {
       if (field.isAnnotationPresent(Column.class)) {
@@ -181,8 +229,6 @@ public class ModelData {
       throw new RuntimeException(String.format("field '%s %s' should not be primitive!", field.getType().getName(), field.getName()));
     }
   }
-
-  private Model model;
 
   private Map<String, Object> columnValues = new HashMap<>();
 

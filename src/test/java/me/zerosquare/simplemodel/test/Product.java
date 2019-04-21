@@ -1,4 +1,8 @@
-package me.zerosquare.simplemodel;
+package me.zerosquare.simplemodel.test;
+
+import me.zerosquare.simplemodel.Column;
+import me.zerosquare.simplemodel.SoftDeleteModel;
+import me.zerosquare.simplemodel.Table;
 
 import java.sql.*;
 
