@@ -1,8 +1,7 @@
 package me.zerosquare.simplemodel;
 
 import me.zerosquare.simplemodel.annotations.Table;
-import me.zerosquare.simplemodel.internal.Connector;
-import me.zerosquare.simplemodel.internal.Logger;
+import me.zerosquare.simplemodel.internals.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 

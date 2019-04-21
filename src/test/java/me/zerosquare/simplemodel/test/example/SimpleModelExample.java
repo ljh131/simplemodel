@@ -3,8 +3,8 @@ package me.zerosquare.simplemodel.test.example;
 import java.sql.SQLException;
 import java.util.*;
 
-import me.zerosquare.simplemodel.internal.Connector;
-import me.zerosquare.simplemodel.internal.Logger;
+import me.zerosquare.simplemodel.Connector;
+import me.zerosquare.simplemodel.internals.Logger;
 import me.zerosquare.simplemodel.test.Company;
 import me.zerosquare.simplemodel.test.Employee;
 import org.junit.*;

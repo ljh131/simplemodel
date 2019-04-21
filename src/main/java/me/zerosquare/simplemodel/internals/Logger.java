@@ -1,4 +1,4 @@
-package me.zerosquare.simplemodel.internal;
+package me.zerosquare.simplemodel.internals;
 
 import org.slf4j.LoggerFactory;
 
