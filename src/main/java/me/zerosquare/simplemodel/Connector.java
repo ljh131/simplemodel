@@ -38,8 +38,7 @@ public class Connector {
   }
 
   private static Connection getDBConnection() throws SQLException {
-    Connection c = DriverManager.getConnection(url, user, password);
-    return c;
+    return DriverManager.getConnection(url, user, password);
   }
 
   private static void tryClose(AutoCloseable ac) {
@@ -48,6 +47,7 @@ public class Connector {
         ac.close();
       }
     } catch (Exception ignored) {
+      // ignored
     }
   }
 

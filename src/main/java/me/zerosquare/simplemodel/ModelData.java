@@ -149,12 +149,7 @@ public class ModelData {
       return false;
     }
 
-    if(val == null) {
-      //Logger.w("val is null! key '%s' is ignored for insert/update", key.toString());
-      return false;
-    }
-
-    return true;
+    return val != null;
   }
 
   void fromAnnotation(Object o) {
