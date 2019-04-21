@@ -184,7 +184,7 @@ public class Model {
   // returns null if no result
   public <T extends Model> T findBy(String whereClause, Object... args) throws SQLException {
     List<Model> r = where(whereClause, args).limit(1).fetch();
-    if(r == null || r.size() == 0) return null;
+    if(r == null || r.isEmpty()) return null;
     return (T)r.get(0);
   }
 
@@ -326,9 +326,7 @@ public class Model {
   private Model newInstance() {
     try {
       return getClass().newInstance();
-    } catch(InstantiationException e) {
-      Logger.warnException(e);
-    } catch(IllegalAccessException e) {
+    } catch(InstantiationException | IllegalAccessException e) {
       Logger.warnException(e);
     }
     return null;
@@ -391,15 +389,13 @@ public class Model {
   // update/delete시 조건문을 지정하지 않을 경우 사용하는 where절
   private String makeDefaultWhereForUpdate() {
     Long id = data.getId();
-    String defaultWhere = makeWhereWithFindId(id);
-    return defaultWhere;
+    return makeWhereWithFindId(id);
   }
 
   private String makeWhereWithFindId(long id) {
-    String where = StringUtils.isBlank(reservedJoin) ? 
+    return StringUtils.isBlank(reservedJoin) ?
       String.format("id=%d", id) :
       String.format("%s.id=%d", tableName, id);
-    return where;
   }
 
   private String getReservedWhere() {
