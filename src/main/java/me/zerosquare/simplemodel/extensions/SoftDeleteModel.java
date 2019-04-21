@@ -1,4 +1,6 @@
-package me.zerosquare.simplemodel;
+package me.zerosquare.simplemodel.extensions;
+
+import me.zerosquare.simplemodel.Model;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
