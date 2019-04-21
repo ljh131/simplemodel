@@ -2,7 +2,7 @@ package me.zerosquare.simplemodel;
 
 import me.zerosquare.simplemodel.Model.QueryType;
 import me.zerosquare.simplemodel.annotations.Column;
-import me.zerosquare.simplemodel.internal.Logger;
+import me.zerosquare.simplemodel.internals.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
