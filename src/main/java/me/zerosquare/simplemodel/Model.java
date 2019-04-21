@@ -10,7 +10,6 @@ import java.lang.annotation.Annotation;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
@@ -46,7 +45,7 @@ public class Model {
   }
 
   /**
-   * @return generatedId if exists, otherwise 0 when success, -1 when error
+   * @return generatedId if exists, otherwise 0
    */
   public long create() throws SQLException {
     QueryType queryType = QueryType.INSERT;
@@ -70,10 +69,10 @@ public class Model {
 
         data.putId(generatedId);
 
-        return generatedId;
+        return ExecuteResult.ofResult(true, generatedId);
       }
 
-      return -1;
+      return ExecuteResult.ofResult(true, 0L);
     });
   }
 
@@ -132,6 +131,62 @@ public class Model {
     return (T)this;
   }
 
+  // FIXME extract to other class
+  private Map<String, Object> getFromResultSet(ResultSet rs) throws SQLException {
+    Map<String, Object> colvals = new HashMap<>();
+
+    ResultSetMetaData meta = rs.getMetaData();
+    int cols = meta.getColumnCount();
+
+    for(int col = 1; col <= cols; col++) {
+      String table = meta.getTableName(col);
+      String key = meta.getColumnName(col);
+      int type = meta.getColumnType(col);
+      Object val;
+
+      // TODO need more
+      switch(type) {
+        case Types.BIT:
+        case Types.TINYINT:
+        case Types.BOOLEAN:
+          val = rs.getBoolean(col);
+          break;
+
+        case Types.SMALLINT:
+        case Types.INTEGER:
+          val = rs.getInt(col);
+          break;
+
+        case Types.BIGINT:
+          val = rs.getLong(col);
+          break;
+
+        case Types.VARCHAR:
+        case Types.LONGVARCHAR:
+          val = rs.getString(col);
+          break;
+
+        case Types.TIMESTAMP:
+          val = rs.getTimestamp(col);
+          break;
+
+        default:
+          throw new RuntimeException(String.format("Unknown column type! %s(%d) %s on column %s",
+                  meta.getColumnTypeName(col), type, meta.getColumnClassName(col), key));
+      }
+
+      Logger.t("fetched - table: %s key: %s type: %s val: %s",
+              table, key, type, val == null ? "(null)" : val.toString());
+
+      if(!table.equals(tableName) && table.length() > 0) {
+        key = String.format("%s.%s", table, key);
+      }
+      colvals.put(key, val);
+    }
+
+    return colvals;
+  }
+
   // returns empty list if no result found
   public <T extends Model> List<T> fetch() throws SQLException {
     QueryType queryType = QueryType.SELECT;
@@ -156,66 +211,13 @@ public class Model {
       q += String.format(" OFFSET %s", reservedOffset);
     }
 
-    boolean success = false;
-    Connector c = null;
-    try {
-      c = Connector.prepareStatement(q, false);
-      PreparedStatement pst = c.getPreparedStatement();
+    return execute(QueryType.SELECT, q, pst -> {
       addParameters(pst, 0, reservedWhereParams);
       ResultSet rs = pst.executeQuery();
-      ResultSetMetaData meta = rs.getMetaData();
-      int cols = meta.getColumnCount();
-
       ArrayList<Model> models = new ArrayList<>();
 
       while(rs.next()) {
-        Map<String, Object> colvals = new HashMap<>();
-
-        for(int col = 1; col <= cols; col++) {
-          String table = meta.getTableName(col);
-          String key = meta.getColumnName(col);
-          int type = meta.getColumnType(col);
-          Object val;
-
-          // TODO need more
-          switch(type) {
-            case Types.BIT:
-            case Types.TINYINT:
-            case Types.BOOLEAN:
-              val = rs.getBoolean(col);
-              break;
-
-            case Types.SMALLINT:
-            case Types.INTEGER:
-              val = rs.getInt(col);
-              break;
-
-            case Types.BIGINT:
-              val = rs.getLong(col);
-              break;
-
-            case Types.VARCHAR:
-            case Types.LONGVARCHAR:
-              val = rs.getString(col);
-              break;
-              
-            case Types.TIMESTAMP:
-              val = rs.getTimestamp(col);
-              break;
-
-            default:
-              throw new RuntimeException(String.format("Unknown column type! %s(%d) %s on column %s", 
-                    meta.getColumnTypeName(col), type, meta.getColumnClassName(col), key));
-          }
-
-          Logger.t("fetched - table: %s key: %s type: %s val: %s", 
-              table, key, type, val == null ? "(null)" : val.toString());
-
-          if(!table.equals(tableName) && table.length() > 0) {
-            key = String.format("%s.%s", table, key);
-          }
-          colvals.put(key, val);
-        }
+        Map<String, Object> colvals = getFromResultSet(rs);
 
         Model model = newInstance();
         model.tableName = tableName;
@@ -224,15 +226,8 @@ public class Model {
         models.add(model);
       }
 
-      success = true;
-      return (List<T>)models;
-    } catch(SQLException e) {
-      Logger.warnException(e);
-      throw e;
-    } finally {
-      if(c != null) { c.close(); }
-      _afterExecute(queryType, success);
-    }
+      return ExecuteResult.ofResult(true, (List<T>)models);
+    });
   }
 
   /**
@@ -256,7 +251,7 @@ public class Model {
   }
 
   /**
-   * @return affected row count, -1 when error
+   * @return affected row count
    */
   public long update() throws SQLException {
     QueryType queryType = QueryType.UPDATE;
@@ -274,14 +269,14 @@ public class Model {
       int last = addParameters(pst, 0, colvals);
       addParameters(pst, last, reservedWhereParams);
 
-      return pst.executeUpdate();
+      return ExecuteResult.ofResult(true, (long)pst.executeUpdate());
     });
   }
 
   /**
-   * update single column on db directly. (so it skips callback)
+   * update single column on db directly. (skips callback)
    *
-   * @return affected row count, -1 when error
+   * @return affected row count
    */
   public long updateColumn(String columnName, Object value) throws SQLException {
     reserveDefaultWhereForUpdate();
@@ -290,16 +285,17 @@ public class Model {
       String.format("%s=?", columnName),
       getReservedWhere());
 
+    // FIXME callback이 호출됨;;
     return execute(null, q, pst -> {
       int last = addParameters(pst, 0, Arrays.asList(value));
       addParameters(pst, last, reservedWhereParams);
 
-      return pst.executeUpdate();
+      return ExecuteResult.ofResult(true, (long)pst.executeUpdate());
     });
   }
 
   /**
-   * @return affected row count, -1 when error
+   * @return affected row count
    */
   public long delete() throws SQLException {
     QueryType queryType = QueryType.DELETE;
@@ -311,7 +307,7 @@ public class Model {
     return execute(queryType, q, pst -> {
       addParameters(pst, 0, reservedWhereParams);
 
-      return pst.executeUpdate();
+      return ExecuteResult.ofResult(true, (long)pst.executeUpdate());
     });
   }
 
@@ -470,29 +466,60 @@ public class Model {
     return reservedWhere;
   }
 
+
+  /**
+   * internal query execution
+   */
+
   @FunctionalInterface
-  private interface ExecuteFunction {
-    long call(PreparedStatement pst) throws SQLException;
+  private interface ExecuteFunction<T> {
+    ExecuteResult<T> call(PreparedStatement pst) throws SQLException;
   }
 
-  private long execute(QueryType queryType, String sql, ExecuteFunction functor) throws SQLException {
-    long result = -1;
+  private static class ExecuteResult<T> {
+    private static <T> ExecuteResult<T> ofResult(boolean success, T result) {
+        return new ExecuteResult(success, result);
+    }
+
+    private ExecuteResult(boolean succees, T result) {
+      this.success = succees;
+      this.result = result;
+    }
+
+    private ExecuteResult() {
+      this(false, null);
+    }
+
+    private boolean isSucceed() {
+      return success;
+    }
+
+    private T getResult() {
+      return result;
+    }
+
+    private boolean success;
+    private T result;
+  }
+
+  private <T> T execute(QueryType queryType, String sql, ExecuteFunction exec) throws SQLException {
+    ExecuteResult<T> result = new ExecuteResult<>();
     Connector c = null;
     try {
       c = Connector.prepareStatement(sql, true);
       PreparedStatement pst = c.getPreparedStatement();
 
-      result = functor.call(pst);
+      result = exec.call(pst);
     } catch(SQLException e) {
       Logger.warnException(e);
       throw e;
     } finally {
       if(c != null) { c.close(); }
       if(queryType != null) {
-        _afterExecute(queryType, result >= 0);
+        _afterExecute(queryType, result.isSucceed());
       }
     }
-    return result;
+    return result.getResult();
   }
 
   private String tableName;
