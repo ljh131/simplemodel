@@ -8,12 +8,12 @@ import java.util.List;
 
 public class SoftDeleteModel extends Model {
   @Override
-  public long delete() throws SQLException {
+  public long delete() throws SQLException, InterruptedException {
     return updateColumn("deleted_at", new Timestamp(System.currentTimeMillis()));
   }
 
   @Override
-  public <T extends Model> List<T> fetch() throws SQLException {
+  public <T extends Model> List<T> fetch() throws SQLException, InterruptedException {
     if(!includeDeleted) {
       where(String.format("%s.deleted_at is null", getTableName()));
     }
