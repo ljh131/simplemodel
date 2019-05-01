@@ -27,10 +27,9 @@ public class Product extends SoftDeleteModel {
   public Timestamp deletedAt;
 
   @Override
-  protected boolean beforeExecute(QueryType type) {
+  protected void beforeExecute(QueryType type) {
     if(type == QueryType.UPDATE) {
       price = price * 10;
     }
-    return true;
   }
 }

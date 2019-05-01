@@ -312,30 +312,24 @@ public class Model {
 
   /**
    * Override this method to handle something before query execution or abort the execution.
-   * @return true if you want to abort the execution
+   * @throws InterruptedException throw this to interrupt execution
    */
-  protected boolean beforeExecute(QueryType type) {
-    return true;
-  }
+  protected void beforeExecute(QueryType type) throws InterruptedException { }
 
   /**
    * Override this method to handle something after query execution or abort the execution.
-   * Note that even if you abort the execution by this method, executed query is not rolled back.
-   * @return true if you want to abort the execution
+   * Note that even if you abort the execution, already executed query is not rolled back.
+   * @throws InterruptedException throw this to interrupt execution
    */
-  protected boolean afterExecute(QueryType type, boolean success) {
-    return true;
-  }
+  protected void afterExecute(QueryType type, boolean success) throws InterruptedException { }
 
   private void _beforeExecute(QueryType queryType) throws InterruptedException {
-    if (beforeExecute(queryType)) {
-        data.fromAnnotation(this);
+    beforeExecute(queryType);
 
-        if(queryType == QueryType.UPDATE || queryType == QueryType.DELETE) {
-          reserveDefaultWhereForUpdate();
-        }
-    } else {
-      throw new InterruptedException("interrupted by before execution");
+    data.fromAnnotation(this);
+
+    if(queryType == QueryType.UPDATE || queryType == QueryType.DELETE) {
+      reserveDefaultWhereForUpdate();
     }
   }
 
@@ -343,9 +337,8 @@ public class Model {
     if(success) {
       data.toAnnotation(this);
     }
-    if (!afterExecute(queryType, success)) {
-      throw new InterruptedException("interrupted by after execution");
-    }
+
+    afterExecute(queryType, success);
   }
 
   private Model newInstance() {
