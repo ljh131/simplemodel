@@ -12,7 +12,7 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 /**
- * Use this class directly, or extends this class to use ORM
+ * Use this class directly, or extends this class to use ORM.
  *
  * # Special columns
  * Special columns have predefined column names: id, created_at, updated_at
@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
  *  - id is used by find and update/delete (only if where is not specified).
  *    - If you want to use these methods, you should have id column in the table.
  *  - created_at/updated_at are also stored when row is created/updated.
- *    - If you want to store them, you should put created_at/updated_at with null value or map in the ORM
+ *    - If you want to store them, you should put created_at/updated_at with null value or map in the ORM.
  */
 public class Model {
 
@@ -46,7 +46,7 @@ public class Model {
   /**
    * @return generatedId if exists, otherwise 0
    */
-  public long create() throws SQLException {
+  public long create() throws SQLException, InterruptedException {
     QueryType queryType = QueryType.INSERT;
     _beforeExecute(queryType);
 
@@ -130,8 +130,10 @@ public class Model {
     return (T)this;
   }
 
-  // returns empty list if no result found
-  public <T extends Model> List<T> fetch() throws SQLException {
+  /**
+   * @return empty list if no result found
+   */
+  public <T extends Model> List<T> fetch() throws SQLException, InterruptedException {
     QueryType queryType = QueryType.SELECT;
     _beforeExecute(queryType);
 
@@ -174,29 +176,34 @@ public class Model {
   }
 
   /**
-   * This method is helpful for these kind of queries - `select count(id) ...`
-   * Note that it does not use `limit 1`.
+   * Fetch first row only.
+   * This method is helpful for these kind of queries - `select count(id) ...`.
+   * Note that it does not use - `limit 1` query.
    */
-  public <T extends Model> T fetchFirst() throws SQLException {
+  public <T extends Model> T fetchFirst() throws SQLException, InterruptedException {
     return (T)fetch().get(0);
   }
 
-  // returns null if no result
-  public <T extends Model> T findBy(String whereClause, Object... args) throws SQLException {
+  /**
+   * @return null if no result
+   */
+  public <T extends Model> T findBy(String whereClause, Object... args) throws SQLException, InterruptedException {
     List<Model> r = where(whereClause, args).limit(1).fetch();
     if(r == null || r.isEmpty()) return null;
     return (T)r.get(0);
   }
 
-  // returns null if no result
-  public <T extends Model> T find(long id) throws SQLException {
+  /**
+   * @return null if no result
+   */
+  public <T extends Model> T find(long id) throws SQLException, InterruptedException {
     return findBy(makeWhereWithFindId(id));
   }
 
   /**
    * @return affected row count
    */
-  public long update() throws SQLException {
+  public long update() throws SQLException, InterruptedException {
     QueryType queryType = QueryType.UPDATE;
     _beforeExecute(queryType);
 
@@ -217,18 +224,17 @@ public class Model {
   }
 
   /**
-   * update single column on db directly. (skips callback)
+   * Update single column only.
    *
    * @return affected row count
    */
-  public long updateColumn(String columnName, Object value) throws SQLException {
+  public long updateColumn(String columnName, Object value) throws SQLException, InterruptedException {
     reserveDefaultWhereForUpdate();
 
     String q = String.format("UPDATE %s SET %s WHERE %s", tableName, 
       String.format("%s=?", columnName),
       getReservedWhere());
 
-    // FIXME callback이 호출됨;;
     return execute(null, q, pst -> {
       int last = addParameters(pst, 0, Arrays.asList(value));
       addParameters(pst, last, reservedWhereParams);
@@ -240,7 +246,7 @@ public class Model {
   /**
    * @return affected row count
    */
-  public long delete() throws SQLException {
+  public long delete() throws SQLException, InterruptedException {
     QueryType queryType = QueryType.DELETE;
     _beforeExecute(queryType);
 
@@ -263,7 +269,7 @@ public class Model {
   }
 
   /**
-   * put column and value for create/update
+   * Put column and value for create/update
    */
   public <T extends Model> T put(String key, Object val) {
     data.put(key, val);
@@ -271,7 +277,7 @@ public class Model {
   }
 
   /**
-   * get column value
+   * Get column value
    */
   public Object get(String columnName) {
     return data.get(columnName);
@@ -304,23 +310,42 @@ public class Model {
     return ds;
   }
 
-  protected void beforeExecute(QueryType type) {}
-  protected void afterExecute(QueryType type, boolean success) {}
+  /**
+   * Override this method to handle something before query execution or abort the execution.
+   * @return true if you want to abort the execution
+   */
+  protected boolean beforeExecute(QueryType type) {
+    return true;
+  }
 
-  private void _beforeExecute(QueryType queryType) {
-    beforeExecute(queryType);
-    data.fromAnnotation(this);
+  /**
+   * Override this method to handle something after query execution or abort the execution.
+   * Note that even if you abort the execution by this method, executed query is not rolled back.
+   * @return true if you want to abort the execution
+   */
+  protected boolean afterExecute(QueryType type, boolean success) {
+    return true;
+  }
 
-    if(queryType == QueryType.UPDATE || queryType == QueryType.DELETE) {
-      reserveDefaultWhereForUpdate();
+  private void _beforeExecute(QueryType queryType) throws InterruptedException {
+    if (beforeExecute(queryType)) {
+        data.fromAnnotation(this);
+
+        if(queryType == QueryType.UPDATE || queryType == QueryType.DELETE) {
+          reserveDefaultWhereForUpdate();
+        }
+    } else {
+      throw new InterruptedException("interrupted by before execution");
     }
   }
 
-  private void _afterExecute(QueryType queryType, boolean success) {
+  private void _afterExecute(QueryType queryType, boolean success) throws InterruptedException {
     if(success) {
       data.toAnnotation(this);
     }
-    afterExecute(queryType, success);
+    if (!afterExecute(queryType, success)) {
+      throw new InterruptedException("interrupted by after execution");
+    }
   }
 
   private Model newInstance() {
@@ -406,7 +431,7 @@ public class Model {
   }
 
 
-  /**
+  /*
    * internal query execution
    */
 
@@ -441,7 +466,7 @@ public class Model {
     private T result;
   }
 
-  private <T> T execute(QueryType queryType, String sql, ExecuteFunction exec) throws SQLException {
+  private <T> T execute(QueryType queryType, String sql, ExecuteFunction exec) throws SQLException, InterruptedException {
     ExecuteResult<T> result = new ExecuteResult<>();
     Connector c = null;
     try {

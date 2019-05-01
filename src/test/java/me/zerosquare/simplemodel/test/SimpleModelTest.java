@@ -7,7 +7,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
@@ -71,7 +70,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testUpdateColumn() throws SQLException {
+  public void testUpdateColumn() throws Exception {
     String name = makeName();
 
     // insert
@@ -135,7 +134,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testOffset() throws SQLException {
+  public void testOffset() throws Exception {
     int price = (int)(System.currentTimeMillis() / 1000);
 
     Product np = new Product();
@@ -243,7 +242,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testJoin() throws SQLException {
+  public void testJoin() throws Exception {
     // insert
     Model c = Model.table("companies");
     c.put("name", "join company");
@@ -276,7 +275,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testJoinORM() throws SQLException {
+  public void testJoinORM() throws Exception {
     // insert
     Company c = new Company();
     c.name = "join company";
@@ -310,7 +309,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testFindWithJoin() throws SQLException {
+  public void testFindWithJoin() throws Exception {
     // insert
     Company c = new Company();
     c.name = "join company";
