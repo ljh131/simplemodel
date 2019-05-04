@@ -156,19 +156,21 @@ public class Model {
       q += String.format(" OFFSET %s", reservedOffset);
     }
 
-    return execute(QueryType.SELECT, q, pst -> {
+    return execute(queryType, q, pst -> {
       addParameters(pst, 0, reservedWhereParams);
       ResultSet rs = pst.executeQuery();
-      ArrayList<Model> models = new ArrayList<>();
+      ArrayList<T> models = new ArrayList<>();
 
       while(rs.next()) {
         Map<String, Object> colvals = data.getFromResultSet(tableName, rs);
 
-        Model model = newInstance();
+        T model = newInstance();
         model.tableName = tableName;
         model.setColumnValues(colvals);
         model.data.toAnnotation(model);
         models.add(model);
+
+        model._afterExecute(queryType, true);
       }
 
       return ExecuteResult.ofResult(true, (List<T>)models);
@@ -188,7 +190,7 @@ public class Model {
    * @return null if no result
    */
   public <T extends Model> T findBy(String whereClause, Object... args) throws SQLException, InterruptedException {
-    List<Model> r = where(whereClause, args).limit(1).fetch();
+    List<T> r = where(whereClause, args).limit(1).fetch();
     if(r == null || r.isEmpty()) return null;
     return (T)r.get(0);
   }
@@ -229,13 +231,14 @@ public class Model {
    * @return affected row count
    */
   public long updateColumn(String columnName, Object value) throws SQLException, InterruptedException {
-    reserveDefaultWhereForUpdate();
+    QueryType queryType = QueryType.UPDATE;
+    _beforeExecute(queryType);
 
-    String q = String.format("UPDATE %s SET %s WHERE %s", tableName, 
+    String q = String.format("UPDATE %s SET %s WHERE %s", tableName,
       String.format("%s=?", columnName),
       getReservedWhere());
 
-    return execute(null, q, pst -> {
+    return execute(queryType, q, pst -> {
       int last = addParameters(pst, 0, Arrays.asList(value));
       addParameters(pst, last, reservedWhereParams);
 
@@ -312,6 +315,7 @@ public class Model {
 
   /**
    * Override this method to handle something before query execution or abort the execution.
+   * Note that select does not invoke this method.
    * @throws InterruptedException throw this to interrupt execution
    */
   protected void beforeExecute(QueryType type) throws InterruptedException { }
@@ -323,7 +327,7 @@ public class Model {
    */
   protected void afterExecute(QueryType type, boolean success) throws InterruptedException { }
 
-  private void _beforeExecute(QueryType queryType) throws InterruptedException {
+  void _beforeExecute(QueryType queryType) throws InterruptedException {
     beforeExecute(queryType);
 
     data.fromAnnotation(this);
@@ -333,7 +337,7 @@ public class Model {
     }
   }
 
-  private void _afterExecute(QueryType queryType, boolean success) throws InterruptedException {
+  void _afterExecute(QueryType queryType, boolean success) throws InterruptedException {
     if(success) {
       data.toAnnotation(this);
     }
@@ -341,9 +345,9 @@ public class Model {
     afterExecute(queryType, success);
   }
 
-  private Model newInstance() {
+  private <T> T newInstance() {
     try {
-      return getClass().newInstance();
+      return (T)getClass().newInstance();
     } catch(InstantiationException | IllegalAccessException e) {
       Logger.warnException(e);
     }
@@ -430,7 +434,7 @@ public class Model {
 
   @FunctionalInterface
   private interface ExecuteFunction<T> {
-    ExecuteResult<T> call(PreparedStatement pst) throws SQLException;
+    ExecuteResult<T> call(PreparedStatement pst) throws SQLException, InterruptedException;
   }
 
   private static class ExecuteResult<T> {
@@ -479,9 +483,8 @@ public class Model {
     return result.getResult();
   }
 
-  private ModelData data = new ModelData();
-
-  private String tableName;
+  String tableName;
+  ModelData data = new ModelData();
 
   private String reservedWhere = "";
   private ArrayList<Object> reservedWhereParams = new ArrayList<>();

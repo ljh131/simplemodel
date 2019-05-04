@@ -332,6 +332,8 @@ public class SimpleModelTest {
     Employee rs = new Employee().joins("join companies on companies.id = employees.company_id").find(eid1);
     assertEquals(eid1, (long)rs.id);
   }
+  
+  // TODO need tests for before insert/update/delete and after select
 
   private String makeName() {
     return UUID.randomUUID().toString();
