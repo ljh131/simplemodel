@@ -1,11 +1,16 @@
 package me.zerosquare.simplemodel;
 
 import me.zerosquare.simplemodel.annotations.Table;
+import me.zerosquare.simplemodel.exceptions.AbortedException;
+import me.zerosquare.simplemodel.exceptions.ConstructionException;
+import me.zerosquare.simplemodel.exceptions.SimpleModelException;
 import me.zerosquare.simplemodel.internals.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.*;
@@ -46,7 +51,7 @@ public class Model {
   /**
    * @return generatedId if exists, otherwise 0
    */
-  public long create() throws SQLException, InterruptedException {
+  public long create() throws SQLException, SimpleModelException {
     QueryType queryType = QueryType.INSERT;
     _beforeExecute(queryType);
 
@@ -133,9 +138,8 @@ public class Model {
   /**
    * @return empty list if no result found
    */
-  public <T extends Model> List<T> fetch() throws SQLException, InterruptedException {
+  public <T extends Model> List<T> fetch() throws SQLException, SimpleModelException {
     QueryType queryType = QueryType.SELECT;
-    _beforeExecute(queryType);
 
     String q = String.format("SELECT %s from %s", 
         reservedSelect.isEmpty() ? "*" : reservedSelect, 
@@ -168,9 +172,9 @@ public class Model {
         model.tableName = tableName;
         model.setColumnValues(colvals);
         model.data.toAnnotation(model);
-        models.add(model);
-
         model._afterExecute(queryType, true);
+
+        models.add(model);
       }
 
       return ExecuteResult.ofResult(true, (List<T>)models);
@@ -182,14 +186,14 @@ public class Model {
    * This method is helpful for these kind of queries - `select count(id) ...`.
    * Note that it does not use - `limit 1` query.
    */
-  public <T extends Model> T fetchFirst() throws SQLException, InterruptedException {
+  public <T extends Model> T fetchFirst() throws SQLException, SimpleModelException {
     return (T)fetch().get(0);
   }
 
   /**
    * @return null if no result
    */
-  public <T extends Model> T findBy(String whereClause, Object... args) throws SQLException, InterruptedException {
+  public <T extends Model> T findBy(String whereClause, Object... args) throws SQLException, SimpleModelException {
     List<T> r = where(whereClause, args).limit(1).fetch();
     if(r == null || r.isEmpty()) return null;
     return (T)r.get(0);
@@ -198,14 +202,14 @@ public class Model {
   /**
    * @return null if no result
    */
-  public <T extends Model> T find(long id) throws SQLException, InterruptedException {
+  public <T extends Model> T find(long id) throws SQLException, SimpleModelException {
     return findBy(makeWhereWithFindId(id));
   }
 
   /**
    * @return affected row count
    */
-  public long update() throws SQLException, InterruptedException {
+  public long update() throws SQLException, SimpleModelException {
     QueryType queryType = QueryType.UPDATE;
     _beforeExecute(queryType);
 
@@ -230,7 +234,7 @@ public class Model {
    *
    * @return affected row count
    */
-  public long updateColumn(String columnName, Object value) throws SQLException, InterruptedException {
+  public long updateColumn(String columnName, Object value) throws SQLException, SimpleModelException {
     QueryType queryType = QueryType.UPDATE;
     _beforeExecute(queryType);
 
@@ -249,7 +253,7 @@ public class Model {
   /**
    * @return affected row count
    */
-  public long delete() throws SQLException, InterruptedException {
+  public long delete() throws SQLException, SimpleModelException {
     QueryType queryType = QueryType.DELETE;
     _beforeExecute(queryType);
 
@@ -316,18 +320,18 @@ public class Model {
   /**
    * Override this method to handle something before query execution or abort the execution.
    * Note that select does not invoke this method.
-   * @throws InterruptedException throw this to interrupt execution
+   * @throws AbortedException throw this to interrupt execution
    */
-  protected void beforeExecute(QueryType type) throws InterruptedException { }
+  protected void beforeExecute(QueryType type) throws AbortedException { }
 
   /**
    * Override this method to handle something after query execution or abort the execution.
    * Note that even if you abort the execution, already executed query is not rolled back.
-   * @throws InterruptedException throw this to interrupt execution
+   * @throws AbortedException throw this to interrupt execution
    */
-  protected void afterExecute(QueryType type, boolean success) throws InterruptedException { }
+  protected void afterExecute(QueryType type, boolean success) throws AbortedException { }
 
-  void _beforeExecute(QueryType queryType) throws InterruptedException {
+  void _beforeExecute(QueryType queryType) throws SimpleModelException {
     beforeExecute(queryType);
 
     data.fromAnnotation(this);
@@ -337,7 +341,7 @@ public class Model {
     }
   }
 
-  void _afterExecute(QueryType queryType, boolean success) throws InterruptedException {
+  void _afterExecute(QueryType queryType, boolean success) throws SimpleModelException {
     if(success) {
       data.toAnnotation(this);
     }
@@ -345,13 +349,20 @@ public class Model {
     afterExecute(queryType, success);
   }
 
-  private <T> T newInstance() {
+  private <T> T newInstance() throws ConstructionException {
+    Constructor<? extends Model> declaredConstructor;
+
     try {
-      return (T)getClass().newInstance();
-    } catch(InstantiationException | IllegalAccessException e) {
-      Logger.warnException(e);
+      declaredConstructor = getClass().getDeclaredConstructor();
+    } catch (NoSuchMethodException e) {
+      throw new ConstructionException("cannot find constructor for this class");
     }
-    return null;
+
+    try {
+      return (T) declaredConstructor.newInstance();
+    } catch(InstantiationException | IllegalAccessException | InvocationTargetException e) {
+      throw new ConstructionException("cannot make new instance of this class");
+    }
   }
 
   private void trySetTableNameFromAnnotation() {
@@ -433,16 +444,16 @@ public class Model {
    */
 
   @FunctionalInterface
-  private interface ExecuteFunction<T> {
-    ExecuteResult<T> call(PreparedStatement pst) throws SQLException, InterruptedException;
+  private interface ExecuteFunction<R> {
+    ExecuteResult<R> call(PreparedStatement pst) throws SQLException, SimpleModelException;
   }
 
-  private static class ExecuteResult<T> {
-    private static <T> ExecuteResult<T> ofResult(boolean success, T result) {
+  private static class ExecuteResult<R> {
+    private static <R> ExecuteResult<R> ofResult(boolean success, R result) {
         return new ExecuteResult(success, result);
     }
 
-    private ExecuteResult(boolean succees, T result) {
+    private ExecuteResult(boolean succees, R result) {
       this.success = succees;
       this.result = result;
     }
@@ -455,16 +466,16 @@ public class Model {
       return success;
     }
 
-    private T getResult() {
+    private R getResult() {
       return result;
     }
 
     private boolean success;
-    private T result;
+    private R result;
   }
 
-  private <T> T execute(QueryType queryType, String sql, ExecuteFunction exec) throws SQLException, InterruptedException {
-    ExecuteResult<T> result = new ExecuteResult<>();
+  private <R> R execute(QueryType queryType, String sql, ExecuteFunction exec) throws SQLException, SimpleModelException {
+    ExecuteResult<R> result = new ExecuteResult<>();
     Connector c = null;
     try {
       c = Connector.prepareStatement(sql, true);
@@ -475,8 +486,8 @@ public class Model {
       Logger.warnException(e);
       throw e;
     } finally {
-      if(c != null) { c.close(); }
-      if(queryType != null) {
+      if (c != null) { c.close(); }
+      if (queryType != null && queryType != QueryType.SELECT) {
         _afterExecute(queryType, result.isSucceed());
       }
     }

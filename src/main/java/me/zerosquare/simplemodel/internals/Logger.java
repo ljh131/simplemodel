@@ -38,7 +38,7 @@ public class Logger {
 
   public static void warnException(Exception e) {
     String trace = getExceptionStackTrace(e);
-    w("exception has occured: %s", trace);
+    w("exception has occured - %s %s", e.getMessage(), trace);
   }
 
   private static String getExceptionStackTrace(Exception e) {
