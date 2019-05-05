@@ -1,6 +1,7 @@
 package me.zerosquare.simplemodel.extensions;
 
 import me.zerosquare.simplemodel.Model;
+import me.zerosquare.simplemodel.exceptions.SimpleModelException;
 
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -8,12 +9,12 @@ import java.util.List;
 
 public class SoftDeleteModel extends Model {
   @Override
-  public long delete() throws SQLException, InterruptedException {
+  public long delete() throws SQLException, SimpleModelException {
     return updateColumn("deleted_at", new Timestamp(System.currentTimeMillis()));
   }
 
   @Override
-  public <T extends Model> List<T> fetch() throws SQLException, InterruptedException {
+  public <T extends Model> List<T> fetch() throws SQLException, SimpleModelException {
     if(!includeDeleted) {
       where(String.format("%s.deleted_at is null", getTableName()));
     }

@@ -2,16 +2,20 @@ package me.zerosquare.simplemodel.test;
 
 import me.zerosquare.simplemodel.Model;
 import me.zerosquare.simplemodel.Connector;
+import me.zerosquare.simplemodel.annotations.Column;
+import me.zerosquare.simplemodel.annotations.Table;
+import me.zerosquare.simplemodel.exceptions.AbortedException;
+import me.zerosquare.simplemodel.exceptions.SimpleModelException;
 import me.zerosquare.simplemodel.internals.Logger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class SimpleModelTest {
   @BeforeClass
@@ -332,8 +336,97 @@ public class SimpleModelTest {
     Employee rs = new Employee().joins("join companies on companies.id = employees.company_id").find(eid1);
     assertEquals(eid1, (long)rs.id);
   }
-  
-  // TODO need tests for before insert/update/delete and after select
+
+  /**
+   * double age when save
+   * abort when age is zero
+   */
+  @Table(name = "employees")
+  public static class MyEmployee extends Model {
+
+    @Column
+    public Long id;
+
+    @Column(name = "company_id")
+    public Long companyId;
+
+    @Column
+    public String name;
+
+    @Column
+    public Integer age;
+
+    @Override
+    protected void beforeExecute(QueryType type) throws AbortedException {
+      if (age == 0) throw new AbortedException();
+
+      // double age before save
+      if (type == QueryType.INSERT || type == QueryType.UPDATE) {
+        age *= 2;
+      }
+    }
+
+    @Override
+    protected void afterExecute(QueryType type, boolean success) throws AbortedException {
+      if (age == 0) throw new AbortedException();
+
+      // half age after select
+      if (type == QueryType.SELECT) {
+        age /= 2;
+      }
+    }
+  }
+
+  @Test
+  public void testBeforeAndAfterExecute() throws SQLException, SimpleModelException {
+    String name = makeName();
+    int age = 32;
+
+    MyEmployee me = new MyEmployee();
+    me.name = name;
+    me.age = age;
+    long eid = me.create();
+    assertTrue(eid >= 1);
+
+    // check whether age in db is doubled
+    Employee e = new Employee().find(eid);
+    assertEquals(name, e.name);
+    assertEquals(age * 2, (long)e.age);
+
+    MyEmployee me2 = new MyEmployee().find(eid);
+    assertEquals(age, (long)me2.age);
+
+    /**
+     * test execution abort
+     */
+
+    // fail to create when age is zero
+    age = 0;
+    me.name = name;
+    me.age = age;
+    try {
+      eid = me.create();
+      assertFalse(true);
+    } catch (AbortedException ex) {
+      assertTrue(ex != null);
+    }
+
+    // insert by force
+    e = new Employee();
+    e.name = name;
+    e.age = age;
+    eid = e.create();
+    assertTrue(eid >= 1);
+
+    // fail to get when age is zero
+    try {
+      new MyEmployee().find(eid);
+      assertFalse(true);
+    } catch (AbortedException ex) {
+      assertTrue(ex != null);
+    }
+  }
+
 
   private String makeName() {
     return UUID.randomUUID().toString();
