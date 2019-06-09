@@ -34,11 +34,20 @@ public class Model {
   }
 
   public Model(String tableName) {
-    this.tableName = tableName;
+    this.tableName = tableName.toLowerCase();
   }
 
   public Model() {
     trySetTableNameFromAnnotation();
+  }
+
+  private void trySetTableNameFromAnnotation() {
+    Class c = this.getClass();
+    if (c.isAnnotationPresent(Table.class)) {
+      Annotation annotation = c.getAnnotation(Table.class);
+      Table bc = (Table)annotation;
+      this.tableName = bc.name().toLowerCase();
+    }
   }
 
   public enum QueryType {
@@ -73,10 +82,10 @@ public class Model {
 
         data.putId(generatedId);
 
-        return ExecuteResult.ofResult(true, generatedId);
+        return ExecuteResult.of(true, generatedId);
       }
 
-      return ExecuteResult.ofResult(true, 0L);
+      return ExecuteResult.of(true, 0L);
     });
   }
 
@@ -177,7 +186,7 @@ public class Model {
         models.add(model);
       }
 
-      return ExecuteResult.ofResult(true, (List<T>)models);
+      return ExecuteResult.of(true, (List<T>)models);
     });
   }
 
@@ -225,7 +234,7 @@ public class Model {
       int last = addParameters(pst, 0, colvals);
       addParameters(pst, last, reservedWhereParams);
 
-      return ExecuteResult.ofResult(true, (long)pst.executeUpdate());
+      return ExecuteResult.of(true, (long)pst.executeUpdate());
     });
   }
 
@@ -246,7 +255,7 @@ public class Model {
       int last = addParameters(pst, 0, Arrays.asList(value));
       addParameters(pst, last, reservedWhereParams);
 
-      return ExecuteResult.ofResult(true, (long)pst.executeUpdate());
+      return ExecuteResult.of(true, (long)pst.executeUpdate());
     });
   }
 
@@ -263,7 +272,7 @@ public class Model {
     return execute(queryType, q, pst -> {
       addParameters(pst, 0, reservedWhereParams);
 
-      return ExecuteResult.ofResult(true, (long)pst.executeUpdate());
+      return ExecuteResult.of(true, (long)pst.executeUpdate());
     });
   }
 
@@ -365,15 +374,6 @@ public class Model {
     }
   }
 
-  private void trySetTableNameFromAnnotation() {
-    Class c = this.getClass();
-    if (c.isAnnotationPresent(Table.class)) {
-      Annotation annotation = c.getAnnotation(Table.class);
-      Table bc = (Table)annotation;
-      this.tableName = bc.name();
-    }
-  }
-
   /**
    * @return last set column index
    */
@@ -444,13 +444,17 @@ public class Model {
    */
 
   @FunctionalInterface
-  private interface ExecuteFunction<R> {
+  public interface ExecuteFunction<R> {
     ExecuteResult<R> call(PreparedStatement pst) throws SQLException, SimpleModelException;
   }
 
-  private static class ExecuteResult<R> {
-    private static <R> ExecuteResult<R> ofResult(boolean success, R result) {
-        return new ExecuteResult(success, result);
+  public static class ExecuteResult<R> {
+    public static <R> ExecuteResult<R> of(R result) {
+        return new ExecuteResult(true, result);
+    }
+
+    public static <R> ExecuteResult<R> of(boolean success, R result) {
+      return new ExecuteResult(success, result);
     }
 
     private ExecuteResult(boolean succees, R result) {
@@ -462,11 +466,11 @@ public class Model {
       this(false, null);
     }
 
-    private boolean isSucceed() {
+    public boolean isSucceed() {
       return success;
     }
 
-    private R getResult() {
+    public R getResult() {
       return result;
     }
 
@@ -492,6 +496,33 @@ public class Model {
       }
     }
     return result.getResult();
+  }
+
+
+  /*
+   * manual query execution
+   */
+
+  @FunctionalInterface
+  public interface ManualExecuteFunction<R> {
+    R call(PreparedStatement pst) throws SQLException, SimpleModelException;
+  }
+
+  public static <R> R execute(String sql, ManualExecuteFunction<R> exec) throws SQLException, SimpleModelException {
+    R result = null;
+    Connector c = null;
+    try {
+      c = Connector.prepareStatement(sql, true);
+      PreparedStatement pst = c.getPreparedStatement();
+
+      result = exec.call(pst);
+    } catch(SQLException e) {
+      Logger.warnException(e);
+      throw e;
+    } finally {
+      if (c != null) { c.close(); }
+    }
+    return result;
   }
 
   String tableName;

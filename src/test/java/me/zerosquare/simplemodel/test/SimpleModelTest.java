@@ -11,6 +11,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
@@ -18,6 +19,7 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class SimpleModelTest {
+
   @BeforeClass
   public static void tearUp() {
     Logger.i("tear up SimpleModelTest");
@@ -427,6 +429,16 @@ public class SimpleModelTest {
     }
   }
 
+  @Test
+  public void testManualQuery() throws SQLException, SimpleModelException {
+    String result = Model.execute("select 'hello simplemodel'", pst -> {
+      ResultSet rs = pst.executeQuery();
+      rs.next();
+      return rs.getString(1);
+    });
+
+    assertEquals("hello simplemodel", result);
+  }
 
   private String makeName() {
     return UUID.randomUUID().toString();

@@ -81,8 +81,9 @@ public class ModelData {
     int cols = meta.getColumnCount();
 
     for(int col = 1; col <= cols; col++) {
-      String table = meta.getTableName(col);
-      String key = meta.getColumnName(col);
+      // transform to lower case because h2 db returns CAPITALIZED table and column names!
+      String table = meta.getTableName(col).toLowerCase();
+      String key = meta.getColumnName(col).toLowerCase();
       int type = meta.getColumnType(col);
       Object val;
 
@@ -197,7 +198,7 @@ public class ModelData {
   private String columnFieldName(Column col, Field field) {
     String name = col.name();
     if(StringUtils.isBlank(name)) name = field.getName();
-    return name;
+    return name.toLowerCase();
   }
 
   /**
