@@ -1,9 +1,7 @@
 package me.zerosquare.simplemodel;
 
 import me.zerosquare.simplemodel.annotations.Table;
-import me.zerosquare.simplemodel.exceptions.AbortedException;
 import me.zerosquare.simplemodel.exceptions.ConstructionException;
-import me.zerosquare.simplemodel.exceptions.SimpleModelException;
 import me.zerosquare.simplemodel.internals.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -60,7 +58,7 @@ public class Model {
   /**
    * @return generatedId if exists, otherwise 0
    */
-  public long create() throws SQLException, SimpleModelException {
+  public long create() throws Exception {
     QueryType queryType = QueryType.INSERT;
     _beforeExecute(queryType);
 
@@ -90,7 +88,7 @@ public class Model {
   }
 
   public <T extends Model> T select(String selectClause, Object... args) {
-		String c = String.format(selectClause, args);
+	String c = String.format(selectClause, args);
     reservedSelect = c;
     return (T)this;
   }
@@ -147,7 +145,7 @@ public class Model {
   /**
    * @return empty list if no result found
    */
-  public <T extends Model> List<T> fetch() throws SQLException, SimpleModelException {
+  public <T extends Model> List<T> fetch() throws Exception {
     QueryType queryType = QueryType.SELECT;
 
     String q = String.format("SELECT %s from %s", 
@@ -195,14 +193,14 @@ public class Model {
    * This method is helpful for these kind of queries - `select count(id) ...`.
    * Note that it does not use - `limit 1` query.
    */
-  public <T extends Model> T fetchFirst() throws SQLException, SimpleModelException {
+  public <T extends Model> T fetchFirst() throws Exception {
     return (T)fetch().get(0);
   }
 
   /**
    * @return null if no result
    */
-  public <T extends Model> T findBy(String whereClause, Object... args) throws SQLException, SimpleModelException {
+  public <T extends Model> T findBy(String whereClause, Object... args) throws Exception {
     List<T> r = where(whereClause, args).limit(1).fetch();
     if(r == null || r.isEmpty()) return null;
     return (T)r.get(0);
@@ -211,14 +209,14 @@ public class Model {
   /**
    * @return null if no result
    */
-  public <T extends Model> T find(long id) throws SQLException, SimpleModelException {
+  public <T extends Model> T find(long id) throws Exception {
     return findBy(makeWhereWithFindId(id));
   }
 
   /**
    * @return affected row count
    */
-  public long update() throws SQLException, SimpleModelException {
+  public long update() throws Exception {
     QueryType queryType = QueryType.UPDATE;
     _beforeExecute(queryType);
 
@@ -243,7 +241,7 @@ public class Model {
    *
    * @return affected row count
    */
-  public long updateColumn(String columnName, Object value) throws SQLException, SimpleModelException {
+  public long updateColumn(String columnName, Object value) throws Exception {
     QueryType queryType = QueryType.UPDATE;
     _beforeExecute(queryType);
 
@@ -262,7 +260,7 @@ public class Model {
   /**
    * @return affected row count
    */
-  public long delete() throws SQLException, SimpleModelException {
+  public long delete() throws Exception {
     QueryType queryType = QueryType.DELETE;
     _beforeExecute(queryType);
 
@@ -326,22 +324,50 @@ public class Model {
     return ds;
   }
 
+  private boolean enableBeforeExecute = true;
+
+  private boolean enableAfterExecute = true;
+
+  /**
+   * enable/disable handler before query execution
+   * @param enable
+   * @return old value
+   */
+  protected boolean setEnableBeforeExecute(boolean enable) {
+      boolean old = enableBeforeExecute;
+      enableBeforeExecute = enable;
+      return old;
+  }
+
+  /**
+   * enable/disable handler after query execution
+   * @param enable
+   * @return old value
+   */
+  protected boolean setEnableAfterExecute(boolean enable) {
+    boolean old = enableAfterExecute;
+    enableAfterExecute = enable;
+    return old;
+  }
+
   /**
    * Override this method to handle something before query execution or abort the execution.
    * Note that select does not invoke this method.
-   * @throws AbortedException throw this to interrupt execution
+   * @throws Exception throw any exception to interrupt execution
    */
-  protected void beforeExecute(QueryType type) throws AbortedException { }
+  protected void beforeExecute(QueryType type) throws Exception { }
 
   /**
    * Override this method to handle something after query execution or abort the execution.
    * Note that even if you abort the execution, already executed query is not rolled back.
-   * @throws AbortedException throw this to interrupt execution
+   * @throws Exception throw any exception to interrupt execution
    */
-  protected void afterExecute(QueryType type, boolean success) throws AbortedException { }
+  protected void afterExecute(QueryType type, boolean success) throws Exception { }
 
-  void _beforeExecute(QueryType queryType) throws SimpleModelException {
-    beforeExecute(queryType);
+  void _beforeExecute(QueryType queryType) throws Exception {
+    if (enableBeforeExecute) {
+      beforeExecute(queryType);
+    }
 
     data.fromAnnotation(this);
 
@@ -350,12 +376,14 @@ public class Model {
     }
   }
 
-  void _afterExecute(QueryType queryType, boolean success) throws SimpleModelException {
+  void _afterExecute(QueryType queryType, boolean success) throws Exception {
     if(success) {
       data.toAnnotation(this);
     }
 
-    afterExecute(queryType, success);
+    if (enableAfterExecute) {
+      afterExecute(queryType, success);
+    }
   }
 
   private <T> T newInstance() throws ConstructionException {
@@ -445,7 +473,7 @@ public class Model {
 
   @FunctionalInterface
   public interface ExecuteFunction<R> {
-    ExecuteResult<R> call(PreparedStatement pst) throws SQLException, SimpleModelException;
+    ExecuteResult<R> call(PreparedStatement pst) throws Exception;
   }
 
   public static class ExecuteResult<R> {
@@ -478,7 +506,7 @@ public class Model {
     private R result;
   }
 
-  private <R> R execute(QueryType queryType, String sql, ExecuteFunction exec) throws SQLException, SimpleModelException {
+  private <R> R execute(QueryType queryType, String sql, ExecuteFunction exec) throws Exception {
     ExecuteResult<R> result = new ExecuteResult<>();
     Connector c = null;
     try {
@@ -505,10 +533,10 @@ public class Model {
 
   @FunctionalInterface
   public interface ManualExecuteFunction<R> {
-    R call(PreparedStatement pst) throws SQLException, SimpleModelException;
+    R call(PreparedStatement pst) throws Exception;
   }
 
-  public static <R> R execute(String sql, ManualExecuteFunction<R> exec) throws SQLException, SimpleModelException {
+  public static <R> R execute(String sql, ManualExecuteFunction<R> exec) throws Exception {
     R result = null;
     Connector c = null;
     try {
