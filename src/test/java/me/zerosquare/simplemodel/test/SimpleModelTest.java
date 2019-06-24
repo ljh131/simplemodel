@@ -377,10 +377,15 @@ public class SimpleModelTest {
         age /= 2;
       }
     }
+
+    public void disableHandlers() {
+      setEnableBeforeExecute(false);
+      setEnableAfterExecute(false);
+    }
   }
 
   @Test
-  public void testBeforeAndAfterExecute() throws SQLException, SimpleModelException {
+  public void testBeforeAndAfterExecute() throws Exception {
     String name = makeName();
     int age = 32;
 
@@ -397,10 +402,6 @@ public class SimpleModelTest {
 
     MyEmployee me2 = new MyEmployee().find(eid);
     assertEquals(age, (long)me2.age);
-
-    /**
-     * test execution abort
-     */
 
     // fail to create when age is zero
     age = 0;
@@ -427,10 +428,15 @@ public class SimpleModelTest {
     } catch (AbortedException ex) {
       assertTrue(ex != null);
     }
+
+    // now, disable handler and insert with age zero
+    me.disableHandlers();
+    me.age = 0;
+    me.create();
   }
 
   @Test
-  public void testManualQuery() throws SQLException, SimpleModelException {
+  public void testManualQuery() throws Exception {
     String result = Model.execute("select 'hello simplemodel'", pst -> {
       ResultSet rs = pst.executeQuery();
       rs.next();
