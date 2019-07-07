@@ -1,4 +1,8 @@
-package me.zerosquare.simplemodel;
+package me.zerosquare.simplemodel.test;
+
+import me.zerosquare.simplemodel.Model;
+import me.zerosquare.simplemodel.annotations.Column;
+import me.zerosquare.simplemodel.annotations.Table;
 
 @Table(name = "employees")
 public class Employee extends Model {

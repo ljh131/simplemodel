@@ -1,20 +1,21 @@
 package me.zerosquare.simplemodel;
 
-import me.zerosquare.simplemodel.internal.Connector;
-import me.zerosquare.simplemodel.internal.Logger;
-import me.zerosquare.simplemodel.internal.ModelData;
+import me.zerosquare.simplemodel.annotations.Table;
+import me.zerosquare.simplemodel.exceptions.ConstructionException;
+import me.zerosquare.simplemodel.internals.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.*;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 
 /**
- * Use this class directly, or extends this class to use ORM
+ * Use this class directly, or extends this class to use ORM.
  *
  * # Special columns
  * Special columns have predefined column names: id, created_at, updated_at
@@ -22,7 +23,7 @@ import java.util.regex.Pattern;
  *  - id is used by find and update/delete (only if where is not specified).
  *    - If you want to use these methods, you should have id column in the table.
  *  - created_at/updated_at are also stored when row is created/updated.
- *    - If you want to store them, you should put created_at/updated_at with null value or map in the ORM
+ *    - If you want to store them, you should put created_at/updated_at with null value or map in the ORM.
  */
 public class Model {
 
@@ -31,11 +32,20 @@ public class Model {
   }
 
   public Model(String tableName) {
-    this.tableName = tableName;
+    this.tableName = tableName.toLowerCase();
   }
 
   public Model() {
     trySetTableNameFromAnnotation();
+  }
+
+  private void trySetTableNameFromAnnotation() {
+    Class c = this.getClass();
+    if (c.isAnnotationPresent(Table.class)) {
+      Annotation annotation = c.getAnnotation(Table.class);
+      Table bc = (Table)annotation;
+      this.tableName = bc.name().toLowerCase();
+    }
   }
 
   public enum QueryType {
@@ -46,9 +56,9 @@ public class Model {
   }
 
   /**
-   * @return generatedId if exists, otherwise 0 when success, -1 when error
+   * @return generatedId if exists, otherwise 0
    */
-  public long create() throws SQLException {
+  public long create() throws Exception {
     QueryType queryType = QueryType.INSERT;
     _beforeExecute(queryType);
 
@@ -70,15 +80,15 @@ public class Model {
 
         data.putId(generatedId);
 
-        return generatedId;
+        return ExecuteResult.of(true, generatedId);
       }
 
-      return -1;
+      return ExecuteResult.of(true, 0L);
     });
   }
 
   public <T extends Model> T select(String selectClause, Object... args) {
-		String c = String.format(selectClause, args);
+	String c = String.format(selectClause, args);
     reservedSelect = c;
     return (T)this;
   }
@@ -132,10 +142,11 @@ public class Model {
     return (T)this;
   }
 
-  // returns empty list if no result found
-  public <T extends Model> List<T> fetch() throws SQLException {
+  /**
+   * @return empty list if no result found
+   */
+  public <T extends Model> List<T> fetch() throws Exception {
     QueryType queryType = QueryType.SELECT;
-    _beforeExecute(queryType);
 
     String q = String.format("SELECT %s from %s", 
         reservedSelect.isEmpty() ? "*" : reservedSelect, 
@@ -156,109 +167,56 @@ public class Model {
       q += String.format(" OFFSET %s", reservedOffset);
     }
 
-    boolean success = false;
-    Connector c = null;
-    try {
-      c = Connector.prepareStatement(q, false);
-      PreparedStatement pst = c.getPreparedStatement();
+    return execute(queryType, q, pst -> {
       addParameters(pst, 0, reservedWhereParams);
       ResultSet rs = pst.executeQuery();
-      ResultSetMetaData meta = rs.getMetaData();
-      int cols = meta.getColumnCount();
-
-      ArrayList<Model> models = new ArrayList<>();
+      ArrayList<T> models = new ArrayList<>();
 
       while(rs.next()) {
-        Map<String, Object> colvals = new HashMap<>();
+        Map<String, Object> colvals = data.getFromResultSet(tableName, rs);
 
-        for(int col = 1; col <= cols; col++) {
-          String table = meta.getTableName(col);
-          String key = meta.getColumnName(col);
-          int type = meta.getColumnType(col);
-          Object val;
-
-          // TODO need more
-          switch(type) {
-            case Types.BIT:
-            case Types.TINYINT:
-            case Types.BOOLEAN:
-              val = rs.getBoolean(col);
-              break;
-
-            case Types.SMALLINT:
-            case Types.INTEGER:
-              val = rs.getInt(col);
-              break;
-
-            case Types.BIGINT:
-              val = rs.getLong(col);
-              break;
-
-            case Types.VARCHAR:
-            case Types.LONGVARCHAR:
-              val = rs.getString(col);
-              break;
-              
-            case Types.TIMESTAMP:
-              val = rs.getTimestamp(col);
-              break;
-
-            default:
-              throw new RuntimeException(String.format("Unknown column type! %s(%d) %s on column %s", 
-                    meta.getColumnTypeName(col), type, meta.getColumnClassName(col), key));
-          }
-
-          Logger.t("fetched - table: %s key: %s type: %s val: %s", 
-              table, key, type, val == null ? "(null)" : val.toString());
-
-          if(!table.equals(tableName) && table.length() > 0) {
-            key = String.format("%s.%s", table, key);
-          }
-          colvals.put(key, val);
-        }
-
-        Model model = newInstance();
+        T model = newInstance();
         model.tableName = tableName;
         model.setColumnValues(colvals);
-        model.data.toAnnotation();
+        model.data.toAnnotation(model);
+        model._afterExecute(queryType, true);
+
         models.add(model);
       }
 
-      success = true;
-      return (List<T>)models;
-    } catch(SQLException e) {
-      Logger.warnException(e);
-      throw e;
-    } finally {
-      if(c != null) { c.close(); }
-      _afterExecute(queryType, success);
-    }
+      return ExecuteResult.of(true, (List<T>)models);
+    });
   }
 
   /**
-   * This method is helpful for these kind of queries - `select count(id) ...`
-   * Note that it does not use `limit 1`.
+   * Fetch first row only.
+   * This method is helpful for these kind of queries - `select count(id) ...`.
+   * Note that it does not use - `limit 1` query.
    */
-  public <T extends Model> T fetchFirst() throws SQLException {
+  public <T extends Model> T fetchFirst() throws Exception {
     return (T)fetch().get(0);
   }
 
-  // returns null if no result
-  public <T extends Model> T findBy(String whereClause, Object... args) throws SQLException {
-    List<Model> r = where(whereClause, args).limit(1).fetch();
-    if(r == null || r.size() == 0) return null;
+  /**
+   * @return null if no result
+   */
+  public <T extends Model> T findBy(String whereClause, Object... args) throws Exception {
+    List<T> r = where(whereClause, args).limit(1).fetch();
+    if(r == null || r.isEmpty()) return null;
     return (T)r.get(0);
   }
 
-  // returns null if no result
-  public <T extends Model> T find(long id) throws SQLException {
+  /**
+   * @return null if no result
+   */
+  public <T extends Model> T find(long id) throws Exception {
     return findBy(makeWhereWithFindId(id));
   }
 
   /**
-   * @return affected row count, -1 when error
+   * @return affected row count
    */
-  public long update() throws SQLException {
+  public long update() throws Exception {
     QueryType queryType = QueryType.UPDATE;
     _beforeExecute(queryType);
 
@@ -274,34 +232,35 @@ public class Model {
       int last = addParameters(pst, 0, colvals);
       addParameters(pst, last, reservedWhereParams);
 
-      return pst.executeUpdate();
+      return ExecuteResult.of(true, (long)pst.executeUpdate());
     });
   }
 
   /**
-   * update single column on db directly. (so it skips callback)
+   * Update single column only.
    *
-   * @return affected row count, -1 when error
+   * @return affected row count
    */
-  public long updateColumn(String columnName, Object value) throws SQLException {
-    reserveDefaultWhereForUpdate();
+  public long updateColumn(String columnName, Object value) throws Exception {
+    QueryType queryType = QueryType.UPDATE;
+    _beforeExecute(queryType);
 
-    String q = String.format("UPDATE %s SET %s WHERE %s", tableName, 
+    String q = String.format("UPDATE %s SET %s WHERE %s", tableName,
       String.format("%s=?", columnName),
       getReservedWhere());
 
-    return execute(null, q, pst -> {
+    return execute(queryType, q, pst -> {
       int last = addParameters(pst, 0, Arrays.asList(value));
       addParameters(pst, last, reservedWhereParams);
 
-      return pst.executeUpdate();
+      return ExecuteResult.of(true, (long)pst.executeUpdate());
     });
   }
 
   /**
-   * @return affected row count, -1 when error
+   * @return affected row count
    */
-  public long delete() throws SQLException {
+  public long delete() throws Exception {
     QueryType queryType = QueryType.DELETE;
     _beforeExecute(queryType);
 
@@ -311,7 +270,7 @@ public class Model {
     return execute(queryType, q, pst -> {
       addParameters(pst, 0, reservedWhereParams);
 
-      return pst.executeUpdate();
+      return ExecuteResult.of(true, (long)pst.executeUpdate());
     });
   }
 
@@ -324,7 +283,7 @@ public class Model {
   }
 
   /**
-   * put column and value for create/update
+   * Put column and value for create/update
    */
   public <T extends Model> T put(String key, Object val) {
     data.put(key, val);
@@ -332,7 +291,7 @@ public class Model {
   }
 
   /**
-   * get column value
+   * Get column value
    */
   public Object get(String columnName) {
     return data.get(columnName);
@@ -365,42 +324,81 @@ public class Model {
     return ds;
   }
 
-  protected void beforeExecute(QueryType type) {}
-  protected void afterExecute(QueryType type, boolean success) {}
+  private boolean enableBeforeExecute = true;
 
-  private void _beforeExecute(QueryType queryType) {
-    beforeExecute(queryType);
-    data.fromAnnotation();
+  private boolean enableAfterExecute = true;
+
+  /**
+   * enable/disable handler before query execution
+   * @param enable
+   * @return old value
+   */
+  protected boolean setEnableBeforeExecute(boolean enable) {
+      boolean old = enableBeforeExecute;
+      enableBeforeExecute = enable;
+      return old;
+  }
+
+  /**
+   * enable/disable handler after query execution
+   * @param enable
+   * @return old value
+   */
+  protected boolean setEnableAfterExecute(boolean enable) {
+    boolean old = enableAfterExecute;
+    enableAfterExecute = enable;
+    return old;
+  }
+
+  /**
+   * Override this method to handle something before query execution or abort the execution.
+   * Note that select does not invoke this method.
+   * @throws Exception throw any exception to interrupt execution
+   */
+  protected void beforeExecute(QueryType type) throws Exception { }
+
+  /**
+   * Override this method to handle something after query execution or abort the execution.
+   * Note that even if you abort the execution, already executed query is not rolled back.
+   * @throws Exception throw any exception to interrupt execution
+   */
+  protected void afterExecute(QueryType type, boolean success) throws Exception { }
+
+  void _beforeExecute(QueryType queryType) throws Exception {
+    if (enableBeforeExecute) {
+      beforeExecute(queryType);
+    }
+
+    data.fromAnnotation(this);
 
     if(queryType == QueryType.UPDATE || queryType == QueryType.DELETE) {
       reserveDefaultWhereForUpdate();
     }
   }
 
-  private void _afterExecute(QueryType queryType, boolean success) {
+  void _afterExecute(QueryType queryType, boolean success) throws Exception {
     if(success) {
-      data.toAnnotation();
+      data.toAnnotation(this);
     }
-    afterExecute(queryType, success);
+
+    if (enableAfterExecute) {
+      afterExecute(queryType, success);
+    }
   }
 
-  private Model newInstance() {
+  private <T> T newInstance() throws ConstructionException {
+    Constructor<? extends Model> declaredConstructor;
+
     try {
-      return getClass().newInstance();
-    } catch(InstantiationException e) {
-      Logger.warnException(e);
-    } catch(IllegalAccessException e) {
-      Logger.warnException(e);
+      declaredConstructor = getClass().getDeclaredConstructor();
+    } catch (NoSuchMethodException e) {
+      throw new ConstructionException("cannot find constructor for this class");
     }
-    return null;
-  }
 
-  private void trySetTableNameFromAnnotation() {
-    Class c = this.getClass();
-    if (c.isAnnotationPresent(Table.class)) {
-      Annotation annotation = c.getAnnotation(Table.class);
-      Table bc = (Table)annotation;
-      this.tableName = bc.name();
+    try {
+      return (T) declaredConstructor.newInstance();
+    } catch(InstantiationException | IllegalAccessException | InvocationTargetException e) {
+      throw new ConstructionException("cannot make new instance of this class");
     }
   }
 
@@ -452,15 +450,13 @@ public class Model {
   // update/delete시 조건문을 지정하지 않을 경우 사용하는 where절
   private String makeDefaultWhereForUpdate() {
     Long id = data.getId();
-    String defaultWhere = makeWhereWithFindId(id);
-    return defaultWhere;
+    return makeWhereWithFindId(id);
   }
 
   private String makeWhereWithFindId(long id) {
-    String where = StringUtils.isBlank(reservedJoin) ? 
+    return StringUtils.isBlank(reservedJoin) ?
       String.format("id=%d", id) :
       String.format("%s.id=%d", tableName, id);
-    return where;
   }
 
   private String getReservedWhere() {
@@ -470,33 +466,95 @@ public class Model {
     return reservedWhere;
   }
 
+
+  /*
+   * internal query execution
+   */
+
   @FunctionalInterface
-  private interface ExecuteFunction {
-    long call(PreparedStatement pst) throws SQLException;
+  public interface ExecuteFunction<R> {
+    ExecuteResult<R> call(PreparedStatement pst) throws Exception;
   }
 
-  private long execute(QueryType queryType, String sql, ExecuteFunction functor) throws SQLException {
-    long result = -1;
+  public static class ExecuteResult<R> {
+    public static <R> ExecuteResult<R> of(R result) {
+        return new ExecuteResult(true, result);
+    }
+
+    public static <R> ExecuteResult<R> of(boolean success, R result) {
+      return new ExecuteResult(success, result);
+    }
+
+    private ExecuteResult(boolean succees, R result) {
+      this.success = succees;
+      this.result = result;
+    }
+
+    private ExecuteResult() {
+      this(false, null);
+    }
+
+    public boolean isSucceed() {
+      return success;
+    }
+
+    public R getResult() {
+      return result;
+    }
+
+    private boolean success;
+    private R result;
+  }
+
+  private <R> R execute(QueryType queryType, String sql, ExecuteFunction exec) throws Exception {
+    ExecuteResult<R> result = new ExecuteResult<>();
     Connector c = null;
     try {
       c = Connector.prepareStatement(sql, true);
       PreparedStatement pst = c.getPreparedStatement();
 
-      result = functor.call(pst);
+      result = exec.call(pst);
     } catch(SQLException e) {
       Logger.warnException(e);
       throw e;
     } finally {
-      if(c != null) { c.close(); }
-      if(queryType != null) {
-        _afterExecute(queryType, result >= 0);
+      if (c != null) { c.close(); }
+      if (queryType != null && queryType != QueryType.SELECT) {
+        _afterExecute(queryType, result.isSucceed());
       }
+    }
+    return result.getResult();
+  }
+
+
+  /*
+   * manual query execution
+   */
+
+  @FunctionalInterface
+  public interface ManualExecuteFunction<R> {
+    R call(PreparedStatement pst) throws Exception;
+  }
+
+  public static <R> R execute(String sql, ManualExecuteFunction<R> exec) throws Exception {
+    R result = null;
+    Connector c = null;
+    try {
+      c = Connector.prepareStatement(sql, true);
+      PreparedStatement pst = c.getPreparedStatement();
+
+      result = exec.call(pst);
+    } catch(SQLException e) {
+      Logger.warnException(e);
+      throw e;
+    } finally {
+      if (c != null) { c.close(); }
     }
     return result;
   }
 
-  private String tableName;
-  private ModelData data = new ModelData(this);
+  String tableName;
+  ModelData data = new ModelData();
 
   private String reservedWhere = "";
   private ArrayList<Object> reservedWhereParams = new ArrayList<>();

@@ -1,19 +1,25 @@
-package me.zerosquare.simplemodel;
+package me.zerosquare.simplemodel.test;
 
-import me.zerosquare.simplemodel.internal.Connector;
-import me.zerosquare.simplemodel.internal.Logger;
+import me.zerosquare.simplemodel.Model;
+import me.zerosquare.simplemodel.Connector;
+import me.zerosquare.simplemodel.annotations.Column;
+import me.zerosquare.simplemodel.annotations.Table;
+import me.zerosquare.simplemodel.exceptions.AbortedException;
+import me.zerosquare.simplemodel.exceptions.SimpleModelException;
+import me.zerosquare.simplemodel.internals.Logger;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class SimpleModelTest {
+
   @BeforeClass
   public static void tearUp() {
     Logger.i("tear up SimpleModelTest");
@@ -70,7 +76,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testUpdateColumn() throws SQLException {
+  public void testUpdateColumn() throws Exception {
     String name = makeName();
 
     // insert
@@ -134,7 +140,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testOffset() throws SQLException {
+  public void testOffset() throws Exception {
     int price = (int)(System.currentTimeMillis() / 1000);
 
     Product np = new Product();
@@ -242,7 +248,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testJoin() throws SQLException {
+  public void testJoin() throws Exception {
     // insert
     Model c = Model.table("companies");
     c.put("name", "join company");
@@ -275,7 +281,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testJoinORM() throws SQLException {
+  public void testJoinORM() throws Exception {
     // insert
     Company c = new Company();
     c.name = "join company";
@@ -309,7 +315,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testFindWithJoin() throws SQLException {
+  public void testFindWithJoin() throws Exception {
     // insert
     Company c = new Company();
     c.name = "join company";
@@ -331,6 +337,113 @@ public class SimpleModelTest {
 
     Employee rs = new Employee().joins("join companies on companies.id = employees.company_id").find(eid1);
     assertEquals(eid1, (long)rs.id);
+  }
+
+  /**
+   * double age when save
+   * abort when age is zero
+   */
+  @Table(name = "employees")
+  public static class MyEmployee extends Model {
+
+    @Column
+    public Long id;
+
+    @Column(name = "company_id")
+    public Long companyId;
+
+    @Column
+    public String name;
+
+    @Column
+    public Integer age;
+
+    @Override
+    protected void beforeExecute(QueryType type) throws AbortedException {
+      if (age == 0) throw new AbortedException();
+
+      // double age before save
+      if (type == QueryType.INSERT || type == QueryType.UPDATE) {
+        age *= 2;
+      }
+    }
+
+    @Override
+    protected void afterExecute(QueryType type, boolean success) throws AbortedException {
+      if (age == 0) throw new AbortedException();
+
+      // half age after select
+      if (type == QueryType.SELECT) {
+        age /= 2;
+      }
+    }
+
+    public void disableHandlers() {
+      setEnableBeforeExecute(false);
+      setEnableAfterExecute(false);
+    }
+  }
+
+  @Test
+  public void testBeforeAndAfterExecute() throws Exception {
+    String name = makeName();
+    int age = 32;
+
+    MyEmployee me = new MyEmployee();
+    me.name = name;
+    me.age = age;
+    long eid = me.create();
+    assertTrue(eid >= 1);
+
+    // check whether age in db is doubled
+    Employee e = new Employee().find(eid);
+    assertEquals(name, e.name);
+    assertEquals(age * 2, (long)e.age);
+
+    MyEmployee me2 = new MyEmployee().find(eid);
+    assertEquals(age, (long)me2.age);
+
+    // fail to create when age is zero
+    age = 0;
+    me.name = name;
+    me.age = age;
+    try {
+      eid = me.create();
+      assertFalse(true);
+    } catch (AbortedException ex) {
+      assertTrue(ex != null);
+    }
+
+    // insert by force
+    e = new Employee();
+    e.name = name;
+    e.age = age;
+    eid = e.create();
+    assertTrue(eid >= 1);
+
+    // fail to get when age is zero
+    try {
+      new MyEmployee().find(eid);
+      assertFalse(true);
+    } catch (AbortedException ex) {
+      assertTrue(ex != null);
+    }
+
+    // now, disable handler and insert with age zero
+    me.disableHandlers();
+    me.age = 0;
+    me.create();
+  }
+
+  @Test
+  public void testManualQuery() throws Exception {
+    String result = Model.execute("select 'hello simplemodel'", pst -> {
+      ResultSet rs = pst.executeQuery();
+      rs.next();
+      return rs.getString(1);
+    });
+
+    assertEquals("hello simplemodel", result);
   }
 
   private String makeName() {

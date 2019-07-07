@@ -1,13 +1,12 @@
-package me.zerosquare.simplemodel;
+package me.zerosquare.simplemodel.test.example;
 
-import java.sql.SQLException;
 import java.util.*;
-import java.lang.reflect.*;
 
-import me.zerosquare.simplemodel.internal.Connector;
-import me.zerosquare.simplemodel.internal.Logger;
+import me.zerosquare.simplemodel.Connector;
+import me.zerosquare.simplemodel.internals.Logger;
+import me.zerosquare.simplemodel.test.Company;
+import me.zerosquare.simplemodel.test.Employee;
 import org.junit.*;
-import static org.junit.Assert.*;
 
 import me.zerosquare.simplemodel.*;
 
@@ -25,7 +24,7 @@ public class SimpleModelExample {
   }
 
   @Test
-  public void testExample() throws SQLException {
+  public void testExample() throws Exception {
     /*
      * basic example without ORM
      */
@@ -68,7 +67,7 @@ public class SimpleModelExample {
   }
 
   @Test
-  public void testExample2() throws SQLException {
+  public void testExample2() throws Exception {
     /*
      * basic example with ORM
      */
@@ -102,7 +101,7 @@ public class SimpleModelExample {
   }
 
   @Test
-  public void testExample3() throws SQLException {
+  public void testExample3() throws Exception {
     /*
      * more examples
      */
