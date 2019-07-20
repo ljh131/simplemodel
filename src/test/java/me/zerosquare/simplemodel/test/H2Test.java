@@ -57,6 +57,9 @@ public class H2Test {
         assertEquals(name, e.name);
         assertEquals(1, e.age.intValue());
 
+        // exists
+        assertTrue(new Employee().where("id = ?", id).exists());
+
         // update
         Employee ue = new Employee();
         ue.id = id;

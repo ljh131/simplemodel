@@ -71,7 +71,7 @@ public class SimpleModelTest {
     assertEquals(1, Model.table("employees").find(id).delete());
 
     // employee select and not found
-    r = Model.table("employees").find(44444444);
+    r = Model.table("employees").find(404_404_404);
     assertEquals(null, r);
   }
 
@@ -120,6 +120,9 @@ public class SimpleModelTest {
     assertEquals(name, e.name);
     assertEquals(1, e.age.intValue());
 
+    // exists
+    assertTrue(new Employee().where("id = ?", id).exists());
+
     // update
     Employee ue = new Employee();
     ue.id = id;
@@ -137,6 +140,11 @@ public class SimpleModelTest {
 
     // confirm not exists
     assertTrue(new Employee().find(id) == null);
+  }
+
+  @Test
+  public void testNotExists() throws Exception {
+    assertFalse(new Employee().where("id = ?", 404_404_404).exists());
   }
 
   @Test

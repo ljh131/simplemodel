@@ -194,7 +194,8 @@ public class Model {
    * Note that it does not use - `limit 1` query.
    */
   public <T extends Model> T fetchFirst() throws Exception {
-    return (T)fetch().get(0);
+    List<Model> fetched = fetch();
+    return fetched.isEmpty() ? null : (T)fetched.get(0);
   }
 
   /**
@@ -211,6 +212,12 @@ public class Model {
    */
   public <T extends Model> T find(long id) throws Exception {
     return findBy(makeWhereWithFindId(id));
+  }
+
+  public boolean exists() throws Exception {
+      select("1");
+      limit(1);
+      return fetchFirst() != null;
   }
 
   /**
@@ -333,7 +340,7 @@ public class Model {
    * @param enable
    * @return old value
    */
-  protected boolean setEnableBeforeExecute(boolean enable) {
+  public boolean setEnableBeforeExecute(boolean enable) {
       boolean old = enableBeforeExecute;
       enableBeforeExecute = enable;
       return old;
@@ -344,7 +351,7 @@ public class Model {
    * @param enable
    * @return old value
    */
-  protected boolean setEnableAfterExecute(boolean enable) {
+  public boolean setEnableAfterExecute(boolean enable) {
     boolean old = enableAfterExecute;
     enableAfterExecute = enable;
     return old;
