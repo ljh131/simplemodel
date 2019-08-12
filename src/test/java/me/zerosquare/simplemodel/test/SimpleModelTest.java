@@ -5,14 +5,17 @@ import me.zerosquare.simplemodel.Connector;
 import me.zerosquare.simplemodel.annotations.Column;
 import me.zerosquare.simplemodel.annotations.Table;
 import me.zerosquare.simplemodel.exceptions.AbortedException;
-import me.zerosquare.simplemodel.exceptions.SimpleModelException;
 import me.zerosquare.simplemodel.internals.Logger;
+import me.zerosquare.simplemodel.test.model.Company;
+import me.zerosquare.simplemodel.test.model.Employee;
+import me.zerosquare.simplemodel.test.model.Product;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,9 +24,26 @@ import static org.junit.Assert.*;
 public class SimpleModelTest {
 
   @BeforeClass
-  public static void tearUp() {
+  public static void tearUp() throws Exception {
     Logger.i("tear up SimpleModelTest");
-    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=false&zeroDateTimeBehavior=convertToNull", "simplemodeluser", "simplemodeluserpw");
+
+//    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=false&zeroDateTimeBehavior=convertToNull", "simplemodeluser", "simplemodeluserpw");
+
+    Connector.setConnectionInfo("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "sa", "sa");
+
+    loadSchema("db/create-simplemodel-test-table.sql");
+  }
+
+  private static void loadSchema(String filename) throws Exception {
+    Logger.i("current path is: " + Paths.get("").toAbsolutePath().toString());
+
+    // load schema and create tables
+    String path = "../db/" + filename;
+    String schema = new String(Files.readAllBytes(Paths.get(filename)));
+
+//        Logger.i("schema loaded: %s", schema);
+
+    Model.execute(schema, pst -> pst.executeUpdate());
   }
 
   @AfterClass

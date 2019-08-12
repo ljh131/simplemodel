@@ -4,8 +4,8 @@ import java.util.*;
 
 import me.zerosquare.simplemodel.Connector;
 import me.zerosquare.simplemodel.internals.Logger;
-import me.zerosquare.simplemodel.test.Company;
-import me.zerosquare.simplemodel.test.Employee;
+import me.zerosquare.simplemodel.test.model.Company;
+import me.zerosquare.simplemodel.test.model.Employee;
 import org.junit.*;
 
 import me.zerosquare.simplemodel.*;

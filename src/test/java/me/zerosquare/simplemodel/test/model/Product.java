@@ -1,4 +1,4 @@
-package me.zerosquare.simplemodel.test;
+package me.zerosquare.simplemodel.test.model;
 
 import me.zerosquare.simplemodel.annotations.Column;
 import me.zerosquare.simplemodel.annotations.Table;
