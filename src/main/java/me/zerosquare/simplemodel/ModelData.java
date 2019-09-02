@@ -154,42 +154,47 @@ public class ModelData {
   }
 
   void fromAnnotation(Object o) {
-    Field[] fields = o.getClass().getDeclaredFields();
-    for (Field field : fields) {
-      if (field.isAnnotationPresent(Column.class)) {
-        assertAnnotatedField(field);
+    for (Class c = o.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+      Field[] fields = c.getDeclaredFields();
+      for (Field field : fields) {
+        if (field.isAnnotationPresent(Column.class)) {
+          validateAnnotatedField(field);
 
-        Column bc = field.getAnnotation(Column.class);
-        String name = columnFieldName(bc, field);
+          Column bc = field.getAnnotation(Column.class);
+          String name = columnFieldName(bc, field);
 
-        try {
-          Object val = field.get(o);
-          Logger.t("from annotation - %s : %s", name, val);
-          put(name, val);
-        } catch (IllegalAccessException e) {
-          // ignore me
-          Logger.warnException(e);
+          try {
+            Object val = field.get(o);
+            Logger.t("from annotation - %s : %s", name, val);
+            put(name, val);
+          } catch (IllegalAccessException e) {
+            // ignore me
+            Logger.warnException(e);
+          }
         }
       }
     }
   }
 
   void toAnnotation(Object o) {
-    Field[] fields = o.getClass().getDeclaredFields();
-    for (Field field : fields) {
-      if (field.isAnnotationPresent(Column.class)) {
-        assertAnnotatedField(field);
+    for (Class c = o.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+      Field[] fields = c.getDeclaredFields();
+      for (Field field : fields) {
+        if (field.isAnnotationPresent(Column.class)) {
+          validateAnnotatedField(field);
 
-        Column bc = field.getAnnotation(Column.class);
-        String name = columnFieldName(bc, field);
+          Column bc = field.getAnnotation(Column.class);
+          String name = columnFieldName(bc, field);
 
-        try {
-          Object val = get(name);
-          Logger.t("to annotation - %s : %s", name, val);
-          setFieldValue(o, field, val);
-        } catch (IllegalArgumentException e) {
-          // ignore me
-          Logger.warnException(e);
+          try {
+            Object val = get(name);
+            Logger.t("to annotation - %s : %s", name, val);
+
+            setFieldValue(o, field, val);
+          } catch (IllegalArgumentException e) {
+            // ignore me
+            Logger.warnException(e);
+          }
         }
       }
     }
@@ -221,7 +226,7 @@ public class ModelData {
     }
   }
 
-  private void assertAnnotatedField(Field field) {
+  private void validateAnnotatedField(Field field) {
     if(field.getType().isPrimitive()) {
       throw new RuntimeException(String.format("field '%s %s' should not be primitive!", field.getType().getName(), field.getName()));
     }

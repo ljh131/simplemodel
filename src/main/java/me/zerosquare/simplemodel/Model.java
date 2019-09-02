@@ -40,11 +40,13 @@ public class Model {
   }
 
   private void trySetTableNameFromAnnotation() {
-    Class c = this.getClass();
-    if (c.isAnnotationPresent(Table.class)) {
-      Annotation annotation = c.getAnnotation(Table.class);
-      Table bc = (Table)annotation;
-      this.tableName = bc.name().toLowerCase();
+    for (Class c = this.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+      if (c.isAnnotationPresent(Table.class)) {
+        Annotation annotation = c.getAnnotation(Table.class);
+        Table bc = (Table) annotation;
+        this.tableName = bc.name().toLowerCase();
+        break;
+      }
     }
   }
 

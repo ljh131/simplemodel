@@ -7,6 +7,7 @@ import me.zerosquare.simplemodel.annotations.Table;
 import me.zerosquare.simplemodel.exceptions.AbortedException;
 import me.zerosquare.simplemodel.internals.Logger;
 import me.zerosquare.simplemodel.test.model.Company;
+import me.zerosquare.simplemodel.test.model.DummyEmployee;
 import me.zerosquare.simplemodel.test.model.Employee;
 import me.zerosquare.simplemodel.test.model.Product;
 import org.junit.AfterClass;
@@ -24,9 +25,8 @@ import static org.junit.Assert.*;
 public class SimpleModelTest {
 
   @BeforeClass
-  public static void tearUp() throws Exception {
-    Logger.i("tear up SimpleModelTest");
-
+  public static void beforeClass() throws Exception {
+      // for mysql
 //    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=false&zeroDateTimeBehavior=convertToNull", "simplemodeluser", "simplemodeluserpw");
 
     Connector.setConnectionInfo("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "sa", "sa");
@@ -41,15 +41,11 @@ public class SimpleModelTest {
     String path = "../db/" + filename;
     String schema = new String(Files.readAllBytes(Paths.get(filename)));
 
-//        Logger.i("schema loaded: %s", schema);
-
     Model.execute(schema, pst -> pst.executeUpdate());
   }
 
   @AfterClass
-  public static void tearDown() {
-    Logger.i("tear down SimpleModelTest");
-    // TODO clear table;
+  public static void afterClass() {
   }
 
   @Test
@@ -472,6 +468,26 @@ public class SimpleModelTest {
     });
 
     assertEquals("hello simplemodel", result);
+  }
+
+  @Test
+  public void testSubclassORM() throws Exception {
+    String name = makeName();
+
+    // insert
+    DummyEmployee ne = new DummyEmployee();
+    ne.name = name;
+    ne.age = 1;
+    long id = ne.create();
+    assertTrue(id >= 1);
+
+    Logger.i("NEW EMPLOYEE ID: %d", id);
+
+    // find
+    DummyEmployee e = new DummyEmployee().find(id);
+    assertTrue(e != null);
+    assertEquals(name, e.name);
+    assertEquals(1, e.age.intValue());
   }
 
   private String makeName() {
