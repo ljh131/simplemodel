@@ -9,21 +9,33 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
+ *
  * Use this class directly, or extends this class to use ORM.
  *
  * # Special columns
- * Special columns have predefined column names: id, created_at, updated_at
+ * Special columns have predefined column names: `id`, `created_at`, `updated_at`
  *
- *  - id is used by find and update/delete (only if where is not specified).
- *    - If you want to use these methods, you should have id column in the table.
- *  - created_at/updated_at are also stored when row is created/updated.
- *    - If you want to store them, you should put created_at/updated_at with null value or map in the ORM.
+ *  - `id` is used by find and update/delete (only if where is not specified).
+ *  - If you want to use these methods, you should have `id` column in the table.
+ *
+ *  - `created_at`/`updated_at` are also stored when row is created/updated.
+ *  - If you want to store them, you should put `created_at`/`updated_at` with null value or map these to appropriate fields in the ORM class.
+ *
+ * # ORM fields takes precedence
+ * If ORM fields and data with `put` or `setColumnValues` both are exists, ORM fields takes precedence over data.
+ *
  */
 public class Model {
 
@@ -64,7 +76,7 @@ public class Model {
     QueryType queryType = QueryType.INSERT;
     _beforeExecute(queryType);
 
-    Pair<ArrayList<String>, ArrayList<Object>> nvs = data.buildColumnNameAndValues(QueryType.INSERT);
+    Pair<ArrayList<String>, ArrayList<Object>> nvs = data.buildColumnNameAndValues(QueryType.INSERT, false);
     ArrayList<String> colnames = nvs.getLeft();
     ArrayList<Object> colvals = nvs.getRight();
 
@@ -175,12 +187,11 @@ public class Model {
       ArrayList<T> models = new ArrayList<>();
 
       while(rs.next()) {
-        Map<String, Object> colvals = data.getFromResultSet(tableName, rs);
+        Map<String, Object> colvals = data.getColumnValuesFromResultSet(tableName, rs);
 
         T model = newInstance();
         model.tableName = tableName;
-        model.setColumnValues(colvals);
-        model.data.toAnnotation(model);
+        model.data.setColumnValues(colvals);
         model._afterExecute(queryType, true);
 
         models.add(model);
@@ -223,19 +234,36 @@ public class Model {
   }
 
   /**
+   * Update all columns.
    * @return affected row count
    */
   public long update() throws Exception {
+      return update(false);
+  }
+
+  /**
+   * update all columns or only modified columns.
+   * @param updateModifiedOnly
+   * @return
+   * @throws Exception
+   */
+  public long update(boolean updateModifiedOnly) throws Exception {
     QueryType queryType = QueryType.UPDATE;
     _beforeExecute(queryType);
 
-    Pair<ArrayList<String>, ArrayList<Object>> nvs = data.buildColumnNameAndValues(QueryType.UPDATE);
+    Pair<ArrayList<String>, ArrayList<Object>> nvs = data.buildColumnNameAndValues(QueryType.UPDATE, updateModifiedOnly);
+
     ArrayList<String> colnames = nvs.getLeft();
     ArrayList<Object> colvals = nvs.getRight();
 
-    String q = String.format("UPDATE %s SET %s WHERE %s", tableName, 
-      StringUtils.join(colnames.stream().map(c -> String.format("%s=?", c)).toArray(), ','),
-      getReservedWhere());
+    if (colnames.isEmpty()) {
+      Logger.w("nothing to update");
+      return 0;
+    }
+
+    String q = String.format("UPDATE %s SET %s WHERE %s", tableName,
+            StringUtils.join(colnames.stream().map(c -> String.format("%s=?", c)).toArray(), ','),
+            getReservedWhere());
 
     return execute(queryType, q, pst -> {
       int last = addParameters(pst, 0, colvals);
@@ -247,7 +275,7 @@ public class Model {
 
   /**
    * Update single column only.
-   *
+   * Note that it update by using only specified column name and value, not using ORM or other values.
    * @return affected row count
    */
   public long updateColumn(String columnName, Object value) throws Exception {
@@ -255,8 +283,8 @@ public class Model {
     _beforeExecute(queryType);
 
     String q = String.format("UPDATE %s SET %s WHERE %s", tableName,
-      String.format("%s=?", columnName),
-      getReservedWhere());
+            String.format("%s=?", columnName),
+            getReservedWhere());
 
     return execute(queryType, q, pst -> {
       int last = addParameters(pst, 0, Arrays.asList(value));
@@ -338,25 +366,34 @@ public class Model {
   private boolean enableAfterExecute = true;
 
   /**
-   * enable/disable handler before query execution
+   * Enable/disable handler before query execution
    * @param enable
    * @return old value
    */
-  public boolean setEnableBeforeExecute(boolean enable) {
+  public boolean setEnableBeforeHook(boolean enable) {
       boolean old = enableBeforeExecute;
       enableBeforeExecute = enable;
       return old;
   }
 
   /**
-   * enable/disable handler after query execution
+   * Enable/disable handler after query execution
    * @param enable
    * @return old value
    */
-  public boolean setEnableAfterExecute(boolean enable) {
+  public boolean setEnableAfterHook(boolean enable) {
     boolean old = enableAfterExecute;
     enableAfterExecute = enable;
     return old;
+  }
+
+  /**
+   * Disable before/after hooks
+   */
+  public <T extends Model> T disableHooks() {
+    setEnableBeforeHook(false);
+    setEnableAfterHook(false);
+    return (T)this;
   }
 
   /**
@@ -378,16 +415,17 @@ public class Model {
       beforeExecute(queryType);
     }
 
-    data.fromAnnotation(this);
+    data.columnValuesFromAnnotation(this);
 
-    if(queryType == QueryType.UPDATE || queryType == QueryType.DELETE) {
+    if (queryType == QueryType.UPDATE || queryType == QueryType.DELETE) {
       reserveDefaultWhereForUpdate();
     }
   }
 
   void _afterExecute(QueryType queryType, boolean success) throws Exception {
-    if(success) {
-      data.toAnnotation(this);
+    if (success) {
+      data.columnValuesToAnnotation(this);
+      data.saveColumnValues();
     }
 
     if (enableAfterExecute) {
@@ -535,16 +573,17 @@ public class Model {
     return result.getResult();
   }
 
-
-  /*
-   * manual query execution
-   */
-
   @FunctionalInterface
   public interface ManualExecuteFunction<R> {
     R call(PreparedStatement pst) throws Exception;
   }
 
+  /**
+   * Execute SQL in old way
+   * @param sql
+   * @param exec executable function with PreparedStatement.
+   * @return returns result from the return value of exec
+   */
   public static <R> R execute(String sql, ManualExecuteFunction<R> exec) throws Exception {
     R result = null;
     Connector c = null;

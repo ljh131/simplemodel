@@ -12,11 +12,19 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
-public class ModelData {
+class ModelData {
 
   void setColumnValues(Map<String, Object> colvals) {
     columnValues = colvals;
+  }
+
+  /**
+   * save column values at this moment so track the modified columns for update modified only
+   */
+  void saveColumnValues() {
+    oldColumnValues = new HashMap<>(columnValues);
   }
 
   Map<String, Object> getColumnValues() {
@@ -49,24 +57,40 @@ public class ModelData {
     return o != null ? Long.parseLong(o.toString()) : null;
   }
 
-  Pair<ArrayList<String>, ArrayList<Object>> buildColumnNameAndValues(Model.QueryType queryType) {
+  /**
+   * build column name list and value list according to column values.
+   *
+   * @param queryType
+   * @return
+   */
+  Pair<ArrayList<String>, ArrayList<Object>> buildColumnNameAndValues(Model.QueryType queryType, boolean modifiedColumnsOnly) {
     ArrayList<String> colnames = new ArrayList<>();
     ArrayList<Object> colvals = new ArrayList<>();
 
-    for (Map.Entry<String, Object> e : columnValues.entrySet()) {
+    Map<String, Object> cvs;
+
+    if (modifiedColumnsOnly) {
+      cvs = getModifiedColumnValues();
+    } else {
+      cvs = columnValues;
+    }
+
+    for (Map.Entry<String, Object> e : cvs.entrySet()) {
       String key = e.getKey();
+
       Object val = e.getValue();
-      if(!isValidKeyValue(key, val)) continue;
+
+      if (!isValidKeyValue(key, val)) continue;
 
       colnames.add(key);
       colvals.add(val);
     }
 
     // add created at and updated at
-    if(queryType == QueryType.INSERT && containsKey(COLUMN_NAME_CREATED_AT)) {
+    if (queryType == QueryType.INSERT && containsKey(COLUMN_NAME_CREATED_AT)) {
       colnames.add(COLUMN_NAME_CREATED_AT);
       colvals.add(get(COLUMN_NAME_CREATED_AT, new Timestamp(System.currentTimeMillis())));
-    } else if(queryType == QueryType.UPDATE && containsKey(COLUMN_NAME_UPDATED_AT)) {
+    } else if (queryType == QueryType.UPDATE && containsKey(COLUMN_NAME_UPDATED_AT)) {
       colnames.add(COLUMN_NAME_UPDATED_AT);
       colvals.add(get(COLUMN_NAME_UPDATED_AT, new Timestamp(System.currentTimeMillis())));
     }
@@ -74,14 +98,28 @@ public class ModelData {
     return new MutablePair<>(colnames, colvals);
   }
 
-  Map<String, Object> getFromResultSet(String tableName, ResultSet rs) throws SQLException {
+  Map<String, Object> getModifiedColumnValues() {
+      Map<String, Object> modified = new HashMap<>();
+
+      for (Map.Entry<String, Object> kv : columnValues.entrySet()) {
+        String k = kv.getKey();
+        Optional<Object> v = Optional.ofNullable(kv.getValue());
+        if (oldColumnValues.containsKey(k) && !Optional.ofNullable(oldColumnValues.get(k)).equals(v)) {
+          modified.put(k, v.orElse(null));
+        }
+      }
+
+      return modified;
+  }
+
+  Map<String, Object> getColumnValuesFromResultSet(String tableName, ResultSet rs) throws SQLException {
     Map<String, Object> colvals = new HashMap<>();
 
     ResultSetMetaData meta = rs.getMetaData();
     int cols = meta.getColumnCount();
 
     for(int col = 1; col <= cols; col++) {
-      // transform to lower case because h2 db returns CAPITALIZED table and column names!
+      // transform into lower case because h2 db returns CAPITALIZED table/column names!
       String table = meta.getTableName(col).toLowerCase();
       String key = meta.getColumnName(col).toLowerCase();
       int type = meta.getColumnType(col);
@@ -144,16 +182,17 @@ public class ModelData {
    * to skip invalid columns when insert/update
    */
   private boolean isValidKeyValue(String key, Object val) {
-    if(key.equals(COLUMN_NAME_ID) ||
+    if (key.equals(COLUMN_NAME_ID) ||
       key.equals(COLUMN_NAME_CREATED_AT) || 
       key.equals(COLUMN_NAME_UPDATED_AT)) {
       return false;
     }
 
+    // FIXME cannot update to null due to this!
     return val != null;
   }
 
-  void fromAnnotation(Object o) {
+  void columnValuesFromAnnotation(Object o) {
     for (Class c = o.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
       Field[] fields = c.getDeclaredFields();
       for (Field field : fields) {
@@ -176,7 +215,7 @@ public class ModelData {
     }
   }
 
-  void toAnnotation(Object o) {
+  void columnValuesToAnnotation(Object o) {
     for (Class c = o.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
       Field[] fields = c.getDeclaredFields();
       for (Field field : fields) {
@@ -232,7 +271,20 @@ public class ModelData {
     }
   }
 
+  /**
+   * saved after any successful query execution (select, insert, update, delete)
+   */
+  private Map<String, Object> oldColumnValues = new HashMap<>();
+
+  /**
+   * hold column name and column values for any operations
+   */
   private Map<String, Object> columnValues = new HashMap<>();
+
+
+  /*
+   * These are predefined columns.
+   */
 
   private static final String COLUMN_NAME_ID = "id";
   private static final String COLUMN_NAME_CREATED_AT = "created_at";

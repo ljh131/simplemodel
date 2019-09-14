@@ -1,15 +1,13 @@
-package me.zerosquare.simplemodel.test;
+package me.zerosquare.simplemodel;
 
-import me.zerosquare.simplemodel.Model;
-import me.zerosquare.simplemodel.Connector;
 import me.zerosquare.simplemodel.annotations.Column;
 import me.zerosquare.simplemodel.annotations.Table;
 import me.zerosquare.simplemodel.exceptions.AbortedException;
 import me.zerosquare.simplemodel.internals.Logger;
-import me.zerosquare.simplemodel.test.model.Company;
-import me.zerosquare.simplemodel.test.model.DummyEmployee;
-import me.zerosquare.simplemodel.test.model.Employee;
-import me.zerosquare.simplemodel.test.model.Product;
+import me.zerosquare.simplemodel.model.DummyEmployee;
+import me.zerosquare.simplemodel.model.Employee;
+import me.zerosquare.simplemodel.model.Product;
+import me.zerosquare.simplemodel.model.Company;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -18,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -89,31 +88,6 @@ public class SimpleModelTest {
     // employee select and not found
     r = Model.table("employees").find(404_404_404);
     assertEquals(null, r);
-  }
-
-  @Test
-  public void testUpdateColumn() throws Exception {
-    String name = makeName();
-
-    // insert
-    Model newEntry = Model.table("employees");
-    newEntry.put("name", name);
-    newEntry.put("age", 30);
-    long id = newEntry.create();
-    assertTrue(id >= 1);
-
-    // update specific column only
-    Model.table("employees").where("id=?", id).updateColumn("age", 11);
-
-    Model r = Model.table("employees").find(id);
-    assertEquals(name, r.getString("name"));
-    assertEquals(11, r.getInt("age"));
-
-    // again (with find, not where)
-    Model.table("employees").find(id).updateColumn("age", 22);
-
-    r = Model.table("employees").find(id);
-    assertEquals(22, r.getInt("age"));
   }
 
   @Test
@@ -403,8 +377,8 @@ public class SimpleModelTest {
     }
 
     public void disableHandlers() {
-      setEnableBeforeExecute(false);
-      setEnableAfterExecute(false);
+      setEnableBeforeHook(false);
+      setEnableAfterHook(false);
     }
   }
 
@@ -488,6 +462,72 @@ public class SimpleModelTest {
     assertTrue(e != null);
     assertEquals(name, e.name);
     assertEquals(1, e.age.intValue());
+  }
+
+  @Test
+  public void testUpdateModifiedColumnsOnly() throws Exception {
+    Employee e = new Employee();
+    e.name = "original name";
+    e.companyId = 1L;
+    e.age = 1;
+
+    // create and update modified
+    long id = e.create();
+    assertTrue(id >= 1);
+
+    e.companyId = 2L;
+    e.age = 2;
+    e.update(true);
+
+    // select and update modified
+    e = new Employee().find(id);
+    assertEquals("original name", e.name);
+    assertEquals(2L, (long) e.companyId);
+    assertEquals(2, (int) e.age);
+
+    e.companyId = 3L;
+    e.age = 3;
+    e.update(true);
+
+    // update twice and update modified
+    e = new Employee().find(id);
+    assertEquals("original name", e.name);
+    assertEquals(3L, (long) e.companyId);
+    assertEquals(3, (int) e.age);
+
+    e.companyId = 4L;
+    e.age = 4;
+    e.update(true);
+
+    e.companyId = 5L;
+    e.age  = 5;
+    e.update(true);
+
+    e = new Employee().find(id);
+    assertEquals("original name", e.name);
+    assertEquals(5L, (long) e.companyId);
+    assertEquals(5, (int) e.age);
+  }
+
+  @Test
+  public void testGetModifiedColumnValues() {
+    ModelData data = new ModelData();
+    data.put("a", 1);
+    data.put("b", 2);
+    data.put("c", 3);
+    data.put("n", null);
+
+    data.saveColumnValues();
+
+    data.put("b", 22);
+    data.put("c", 33);
+
+    Map<String, Object> modifiedColumnValues = data.getModifiedColumnValues();
+
+    assertEquals(2, modifiedColumnValues.size());
+    assertEquals(22, modifiedColumnValues.get("b"));
+    assertEquals(33, modifiedColumnValues.get("c"));
+    assertTrue(modifiedColumnValues.get("a") == null);
   }
 
   private String makeName() {

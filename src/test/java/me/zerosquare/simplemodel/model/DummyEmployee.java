@@ -1,4 +1,4 @@
-package me.zerosquare.simplemodel.test.model;
+package me.zerosquare.simplemodel.model;
 
 public class DummyEmployee extends Employee {
 }

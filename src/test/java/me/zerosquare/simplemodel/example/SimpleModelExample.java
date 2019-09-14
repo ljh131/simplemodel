@@ -1,11 +1,11 @@
-package me.zerosquare.simplemodel.test.example;
+package me.zerosquare.simplemodel.example;
 
 import java.util.*;
 
 import me.zerosquare.simplemodel.Connector;
 import me.zerosquare.simplemodel.internals.Logger;
-import me.zerosquare.simplemodel.test.model.Company;
-import me.zerosquare.simplemodel.test.model.Employee;
+import me.zerosquare.simplemodel.model.Company;
+import me.zerosquare.simplemodel.model.Employee;
 import org.junit.*;
 
 import me.zerosquare.simplemodel.*;
