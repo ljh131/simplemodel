@@ -530,6 +530,75 @@ public class SimpleModelTest {
     assertTrue(modifiedColumnValues.get("a") == null);
   }
 
+  @Test
+  public void testTransactionCommit() throws Exception {
+    Employee e = new Employee();
+    e.name = "name";
+    e.companyId = 1L;
+    e.age = 1;
+
+    // create and update modified
+    long id = e.create();
+    assertTrue(id >= 1);
+
+    Transaction.execute(() -> {
+      Employee fe = new Employee().find(id);
+      if (fe.age == 1) {
+        Employee ue = new Employee();
+        ue.id = id;
+        ue.companyId = 2L;
+        ue.age = 2;
+        ue.update();
+      } else {
+          throw new Exception("cannot exec tranx");
+      }
+    });
+
+    // verify
+    e = new Employee().find(id);
+    assertEquals(2L, (long) e.companyId);
+    assertEquals(2, (int) e.age);
+  }
+
+  @Test
+  public void testTransactionRollback() throws Exception {
+    Employee e = new Employee();
+    e.name = "name";
+    e.companyId = 1L;
+    e.age = 1;
+
+    // create and update modified
+    long id = e.create();
+    assertTrue(id >= 1);
+
+
+    Exception actualEx = null;
+
+    try {
+      Transaction.execute(() -> {
+        Employee fe = new Employee().find(id);
+        if (fe.age == 1000) {
+          Employee ue = new Employee();
+          ue.id = id;
+          ue.companyId = 2L;
+          ue.age = 2;
+          ue.update();
+        } else {
+          throw new Exception("cannot exec tranx");
+        }
+      });
+    } catch (Exception ex) {
+      actualEx = ex;
+    }
+
+    assertTrue(actualEx.getMessage().equals("cannot exec tranx"));
+
+    // verify
+    e = new Employee().find(id);
+    assertEquals(1L, (long) e.companyId);
+    assertEquals(1, (int) e.age);
+  }
+
   private String makeName() {
     return UUID.randomUUID().toString();
   }

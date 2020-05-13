@@ -39,6 +39,18 @@ import java.util.regex.Pattern;
  */
 public class Model {
 
+  String tableName;
+  ModelData data = new ModelData();
+
+  private String reservedWhere = "";
+  private ArrayList<Object> reservedWhereParams = new ArrayList<>();
+
+  private String reservedSelect = "";
+  private String reservedJoin = "";
+  private String reservedOrderby = "";
+  private String reservedLimit = "";
+  private String reservedOffset = "";
+
   public static Model table(String tableName) {
     return new Model(tableName);
   }
@@ -411,6 +423,8 @@ public class Model {
   protected void afterExecute(QueryType type, boolean success) throws Exception { }
 
   void _beforeExecute(QueryType queryType) throws Exception {
+    Logger.t("before execute: %s", queryType.name());
+
     if (enableBeforeExecute) {
       beforeExecute(queryType);
     }
@@ -423,6 +437,8 @@ public class Model {
   }
 
   void _afterExecute(QueryType queryType, boolean success) throws Exception {
+    Logger.t("after execute: %s %s", queryType.name(), success);
+
     if (success) {
       data.columnValuesToAnnotation(this);
       data.saveColumnValues();
@@ -556,15 +572,20 @@ public class Model {
   private <R> R execute(QueryType queryType, String sql, ExecuteFunction exec) throws Exception {
     ExecuteResult<R> result = new ExecuteResult<>();
     Connector c = null;
+    boolean success = false;
+
     try {
       c = Connector.prepareStatement(sql, true);
       PreparedStatement pst = c.getPreparedStatement();
 
       result = exec.call(pst);
+
+      success = true;
     } catch(SQLException e) {
-      Logger.warnException(e);
+      Logger.e("fail to execute - %s", Logger.getExceptionString(e));
       throw e;
     } finally {
+      if (c != null) { c.executed(success); }
       if (c != null) { c.close(); }
       if (queryType != null && queryType != QueryType.SELECT) {
         _afterExecute(queryType, result.isSucceed());
@@ -587,30 +608,25 @@ public class Model {
   public static <R> R execute(String sql, ManualExecuteFunction<R> exec) throws Exception {
     R result = null;
     Connector c = null;
+    boolean success = false;
+
     try {
       c = Connector.prepareStatement(sql, true);
       PreparedStatement pst = c.getPreparedStatement();
 
       result = exec.call(pst);
+
+      c.executed(true);
+
+      success = true;
     } catch(SQLException e) {
-      Logger.warnException(e);
+      Logger.e("fail to execute - %s", Logger.getExceptionString(e));
       throw e;
     } finally {
+      if (c != null) { c.executed(success); }
       if (c != null) { c.close(); }
     }
     return result;
   }
-
-  String tableName;
-  ModelData data = new ModelData();
-
-  private String reservedWhere = "";
-  private ArrayList<Object> reservedWhereParams = new ArrayList<>();
-
-  private String reservedSelect = "";
-  private String reservedJoin = "";
-  private String reservedOrderby = "";
-  private String reservedLimit = "";
-  private String reservedOffset = "";
 
 }

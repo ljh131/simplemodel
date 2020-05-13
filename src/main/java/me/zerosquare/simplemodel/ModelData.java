@@ -16,6 +16,25 @@ import java.util.Optional;
 
 class ModelData {
 
+  /**
+   * saved after any successful query execution (select, insert, update, delete)
+   */
+  private Map<String, Object> oldColumnValues = new HashMap<>();
+
+  /**
+   * hold column name and column values for any operations
+   */
+  private Map<String, Object> columnValues = new HashMap<>();
+
+
+  /*
+   * These are predefined columns.
+   */
+
+  private static final String COLUMN_NAME_ID = "id";
+  private static final String COLUMN_NAME_CREATED_AT = "created_at";
+  private static final String COLUMN_NAME_UPDATED_AT = "updated_at";
+
   void setColumnValues(Map<String, Object> colvals) {
     columnValues = colvals;
   }
@@ -208,7 +227,7 @@ class ModelData {
             put(name, val);
           } catch (IllegalAccessException e) {
             // ignore me
-            Logger.warnException(e);
+            Logger.w(Logger.getExceptionString(e));
           }
         }
       }
@@ -232,7 +251,7 @@ class ModelData {
             setFieldValue(o, field, val);
           } catch (IllegalArgumentException e) {
             // ignore me
-            Logger.warnException(e);
+            Logger.w(Logger.getExceptionString(e));
           }
         }
       }
@@ -261,7 +280,7 @@ class ModelData {
       }
     } catch (IllegalAccessException e) {
       // ignore me
-      Logger.warnException(e);
+      Logger.w("fail to setFieldValue - %s", Logger.getExceptionString(e));
     }
   }
 
@@ -270,24 +289,5 @@ class ModelData {
       throw new RuntimeException(String.format("field '%s %s' should not be primitive!", field.getType().getName(), field.getName()));
     }
   }
-
-  /**
-   * saved after any successful query execution (select, insert, update, delete)
-   */
-  private Map<String, Object> oldColumnValues = new HashMap<>();
-
-  /**
-   * hold column name and column values for any operations
-   */
-  private Map<String, Object> columnValues = new HashMap<>();
-
-
-  /*
-   * These are predefined columns.
-   */
-
-  private static final String COLUMN_NAME_ID = "id";
-  private static final String COLUMN_NAME_CREATED_AT = "created_at";
-  private static final String COLUMN_NAME_UPDATED_AT = "updated_at";
 
 }
