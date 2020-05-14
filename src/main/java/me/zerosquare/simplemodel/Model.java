@@ -534,6 +534,7 @@ public class Model {
    * internal query execution
    */
 
+  // FIXME rename to StatementExecutor
   @FunctionalInterface
   public interface ExecuteFunction<R> {
     ExecuteResult<R> call(PreparedStatement pst) throws Exception;
@@ -586,7 +587,6 @@ public class Model {
       throw e;
     } finally {
       if (c != null) { c.executed(success); }
-      if (c != null) { c.close(); }
       if (queryType != null && queryType != QueryType.SELECT) {
         _afterExecute(queryType, result.isSucceed());
       }
@@ -616,15 +616,12 @@ public class Model {
 
       result = exec.call(pst);
 
-      c.executed(true);
-
       success = true;
     } catch(SQLException e) {
       Logger.e("fail to execute - %s", Logger.getExceptionString(e));
       throw e;
     } finally {
       if (c != null) { c.executed(success); }
-      if (c != null) { c.close(); }
     }
     return result;
   }

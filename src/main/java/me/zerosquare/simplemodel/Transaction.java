@@ -3,7 +3,6 @@ package me.zerosquare.simplemodel;
 import me.zerosquare.simplemodel.internals.Logger;
 
 import java.sql.Connection;
-import java.sql.SQLException;
 
 public class Transaction {
 
@@ -12,33 +11,53 @@ public class Transaction {
         void execute() throws Exception;
     }
 
-    public static void execute(TransactionExecutor executor) throws Exception {
-        // prepare no auto commit connection
-        Connection conn = Connector.makeDBConnection();
+    /**
+     * Any SQL statement execution in transactionExecutor will use transaction connection
+     * Successful execution of transactionExecutor will commit changes.
+     * To rollback transaction, throw any Exception
+     * @param transactionExecutor
+     * @throws Exception
+     */
+    public static void execute(TransactionExecutor transactionExecutor) throws Exception {
+        Logger.i("begin transaction");
 
-        boolean autoCommitWas = conn.getAutoCommit();
-
-        conn.setAutoCommit(false);
-
-        Connector.prepareCustomConnection(conn, (c, success) -> {
-            try {
-                if (success) {
-                    c.commit();
-                } else {
-                    c.rollback();
-                }
-
-                c.setAutoCommit(autoCommitWas);
-            } catch (SQLException e) {
-                Logger.e("fail to commit/rollback transaction - %s", Logger.getExceptionString(e));
-            }
-        });
+        Connection conn = null;
+        boolean autoCommitWas = false;
 
         try {
-            // in this execution, prepared custom connection will be used
-            executor.execute();
+            // prepare no auto commit connection
+            conn = Connector.makeDBConnection();
+
+            autoCommitWas = conn.getAutoCommit();
+
+            conn.setAutoCommit(false);
+
+            Connector.enableCustomConnection(conn, null);
+
+            // all statements will be executed by prepared custom connection
+            transactionExecutor.execute();
+
+            conn.commit();
+
+            Logger.d("transaction committed");
         } catch (Exception e) {
+            if (conn != null) {
+                conn.rollback();
+            }
+
+            Logger.e("transaction rolled back - %s", Logger.getExceptionString(e));
+
             throw e;
+        } finally {
+            if (conn != null) {
+                conn.setAutoCommit(autoCommitWas);
+            }
+
+            Connector.disableCustomConnection();
+
+            Connector.tryClose(conn);
         }
+
+        Logger.i("end transaction");
     }
 }

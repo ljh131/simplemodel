@@ -541,6 +541,7 @@ public class SimpleModelTest {
     long id = e.create();
     assertTrue(id >= 1);
 
+    // FIXME misuse of tranx
     Transaction.execute(() -> {
       Employee fe = new Employee().find(id);
       if (fe.age == 1) {
@@ -571,9 +572,9 @@ public class SimpleModelTest {
     long id = e.create();
     assertTrue(id >= 1);
 
-
     Exception actualEx = null;
 
+    // FIXME misuse of tranx
     try {
       Transaction.execute(() -> {
         Employee fe = new Employee().find(id);
