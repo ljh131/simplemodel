@@ -187,16 +187,6 @@ class ModelData {
     return colvals;
   }
 
-  String dump() {
-    String ds = "";
-    for (Map.Entry<String, Object> entry : columnValues.entrySet()) {
-      String key = entry.getKey();
-      Object value = entry.getValue();
-      ds += String.format(" %s : %s\n", key, value);
-    }
-    return ds;
-  }
-
   /**
    * to skip invalid columns when insert/update
    */

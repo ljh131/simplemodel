@@ -131,8 +131,8 @@ public class SimpleModelExample {
       .where("companies.id = ?", cid)
       .order("employees.id").fetch();
 
-    long employeeId1 = (long)rs.get(0).id;
-    long employeeId2 = (long)rs.get(1).id;
+    long employeeId1 = rs.get(0).id;
+    long employeeId2 = rs.get(1).id;
 
     // joined table's columns are only accessable with their table name prefix
     long companyid = rs.get(0).getInt("companies.id");

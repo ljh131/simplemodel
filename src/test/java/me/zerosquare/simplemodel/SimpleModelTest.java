@@ -73,7 +73,7 @@ public class SimpleModelTest {
 
     // employee select and not found
     r = Model.table("employees").find(404_404_404);
-    assertEquals(null, r);
+    assertNull(r);
   }
 
   @Test
@@ -92,7 +92,7 @@ public class SimpleModelTest {
     // select
     List<Employee> es = new Employee().where("id = ?", id).fetch();
     Employee e = es.get(0);
-    assertTrue(e != null);
+    assertNotNull(e);
     assertEquals(name, e.name);
     assertEquals(1, e.age.intValue());
 
@@ -115,7 +115,7 @@ public class SimpleModelTest {
     assertEquals(1, de.delete());
 
     // confirm not exists
-    assertTrue(new Employee().find(id) == null);
+    assertNull(new Employee().find(id));
   }
 
   @Test
@@ -168,7 +168,7 @@ public class SimpleModelTest {
     // select
     List<Employee> es = new Employee().where("id = ?", id).fetch();
     Employee e = es.get(0);
-    assertTrue(e != null);
+    assertNotNull(e);
     assertEquals(name, e.name);
     assertEquals(1, e.age.intValue());
 
@@ -180,7 +180,7 @@ public class SimpleModelTest {
     assertEquals(1, e.delete());
 
     // confirm not exists
-    assertTrue(new Employee().find(id) == null);
+    assertNull(new Employee().find(id));
   }
 
   @Test
@@ -199,15 +199,15 @@ public class SimpleModelTest {
     assertEquals(name, p.name);
 
     // delete
-    assertTrue(p.delete() == 1);
+    assertEquals(1, p.delete());
 
     // confirm not exists
-    assertTrue(new Product().find(id) == null);
+    assertNull(new Product().find(id));
 
     // but it is alive actually!
     p = new Product().includeDeleted().find(id);
     assertEquals(name, p.name);
-    assertTrue(p.deletedAt != null);
+    assertNotNull(p.deletedAt);
 
     Logger.i("%s", p.deletedAt.toString());
   }
@@ -393,9 +393,9 @@ public class SimpleModelTest {
     me.age = age;
     try {
       eid = me.create();
-      assertFalse(true);
+      fail();
     } catch (AbortedException ex) {
-      assertTrue(ex != null);
+      assertNotNull(ex);
     }
 
     // insert by force
@@ -408,9 +408,9 @@ public class SimpleModelTest {
     // fail to get when age is zero
     try {
       new MyEmployee().find(eid);
-      assertFalse(true);
+      fail();
     } catch (AbortedException ex) {
-      assertTrue(ex != null);
+      assertNotNull(ex);
     }
 
     // now, disable handler and insert with age zero
@@ -445,7 +445,7 @@ public class SimpleModelTest {
 
     // find
     DummyEmployee e = new DummyEmployee().find(id);
-    assertTrue(e != null);
+    assertNotNull(e);
     assertEquals(name, e.name);
     assertEquals(1, e.age.intValue());
   }
@@ -569,7 +569,7 @@ public class SimpleModelTest {
       coughte = ex;
     }
 
-    assertTrue(coughte.getMessage().equals("abort tranx"));
+    assertEquals("abort tranx", coughte.getMessage());
 
     // verify
     Company c = new Company().find(cid.get());

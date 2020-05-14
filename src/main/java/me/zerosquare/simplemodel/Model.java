@@ -114,8 +114,7 @@ public class Model {
   }
 
   public <T extends Model> T select(String selectClause, Object... args) {
-	String c = String.format(selectClause, args);
-    reservedSelect = c;
+    reservedSelect = String.format(selectClause, args);
     return (T)this;
   }
 
@@ -126,34 +125,31 @@ public class Model {
       joinClause = "JOIN " + joinClause;
     }
 
-		String c = String.format(joinClause, args);
+    String c = String.format(joinClause, args);
     reservedJoin += " " + c;
     return (T)this;
   }
 
   public <T extends Model> T order(String orderClause, Object... args) {
-		String c = String.format(orderClause, args);
-    reservedOrderby = c;
+    reservedOrderby = String.format(orderClause, args);
     return (T)this;
   }
 
   public <T extends Model> T limit(long limitNumber) {
-		String c = String.format("%d", limitNumber);
-    reservedLimit = c;
+    reservedLimit = String.format("%d", limitNumber);
     return (T)this;
   }
 
   public <T extends Model> T offset(long offsetNumber) {
-		String c = String.format("%d", offsetNumber);
-    reservedOffset = c;
+    reservedOffset = String.format("%d", offsetNumber);
     return (T)this;
   }
 
-  public <T extends Model> T resetWhere() {
-    reservedWhere = "";
-    reservedWhereParams = new ArrayList<>();
-    return (T)this;
-  }
+//  public <T extends Model> T resetWhere() {
+//    reservedWhere = "";
+//    reservedWhereParams = new ArrayList<>();
+//    return (T)this;
+//  }
 
   public <T extends Model> T where(String whereClause, Object... args) {
     if(StringUtils.isBlank(whereClause)) return (T)this;
@@ -229,7 +225,7 @@ public class Model {
   public <T extends Model> T findBy(String whereClause, Object... args) throws Exception {
     List<T> r = where(whereClause, args).limit(1).fetch();
     if(r == null || r.isEmpty()) return null;
-    return (T)r.get(0);
+    return r.get(0);
   }
 
   /**
@@ -364,13 +360,6 @@ public class Model {
 
   public String getTableName() {
     return tableName;
-  }
-
-  public String dump() {
-    String ds = "";
-    ds += String.format("tableName: %s\n", tableName);
-    ds += String.format("columnValues:\n", data.dump());
-    return ds;
   }
 
   private boolean enableBeforeExecute = true;
@@ -541,11 +530,11 @@ public class Model {
 
   public static class ExecuteResult<R> {
     public static <R> ExecuteResult<R> of(R result) {
-        return new ExecuteResult(true, result);
+        return new ExecuteResult<>(true, result);
     }
 
     public static <R> ExecuteResult<R> of(boolean success, R result) {
-      return new ExecuteResult(success, result);
+      return new ExecuteResult<>(success, result);
     }
 
     private ExecuteResult(boolean succees, R result) {
