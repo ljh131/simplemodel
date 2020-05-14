@@ -1,26 +1,27 @@
 package me.zerosquare.simplemodel.example;
 
-import java.util.*;
-
 import me.zerosquare.simplemodel.Connector;
-import me.zerosquare.simplemodel.internals.Logger;
+import me.zerosquare.simplemodel.Model;
+import me.zerosquare.simplemodel.Schema;
 import me.zerosquare.simplemodel.model.Company;
 import me.zerosquare.simplemodel.model.Employee;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
-import me.zerosquare.simplemodel.*;
+import java.util.List;
 
 public class SimpleModelExample {
+
   @BeforeClass
-  public static void tearUp() {
-    Logger.i("tear up SimpleModelTest");
-    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=false", "simplemodeluser", "simplemodeluserpw");
+  public static void beforeClass() throws Exception {
+    Connector.setConnectionInfo("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "sa", "sa");
+
+    Schema.loadSchema("src/test/resources/db/create-simplemodel-test-table.sql");
   }
 
   @AfterClass
-  public static void tearDown() {
-    Logger.i("tear down SimpleModelTest");
-    // TODO clear table;
+  public static void afterClass() {
   }
 
   @Test

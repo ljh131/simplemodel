@@ -534,10 +534,9 @@ public class Model {
    * internal query execution
    */
 
-  // FIXME rename to StatementExecutor
   @FunctionalInterface
-  public interface ExecuteFunction<R> {
-    ExecuteResult<R> call(PreparedStatement pst) throws Exception;
+  public interface StatementExecutor<R> {
+    ExecuteResult<R> execute(PreparedStatement pst) throws Exception;
   }
 
   public static class ExecuteResult<R> {
@@ -570,7 +569,7 @@ public class Model {
     private R result;
   }
 
-  private <R> R execute(QueryType queryType, String sql, ExecuteFunction exec) throws Exception {
+  private <R> R execute(QueryType queryType, String sql, StatementExecutor<R> exec) throws Exception {
     ExecuteResult<R> result = new ExecuteResult<>();
     Connector c = null;
     boolean success = false;
@@ -579,7 +578,7 @@ public class Model {
       c = Connector.prepareStatement(sql, true);
       PreparedStatement pst = c.getPreparedStatement();
 
-      result = exec.call(pst);
+      result = exec.execute(pst);
 
       success = true;
     } catch(SQLException e) {

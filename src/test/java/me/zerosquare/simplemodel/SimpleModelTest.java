@@ -4,20 +4,19 @@ import me.zerosquare.simplemodel.annotations.Column;
 import me.zerosquare.simplemodel.annotations.Table;
 import me.zerosquare.simplemodel.exceptions.AbortedException;
 import me.zerosquare.simplemodel.internals.Logger;
+import me.zerosquare.simplemodel.model.Company;
 import me.zerosquare.simplemodel.model.DummyEmployee;
 import me.zerosquare.simplemodel.model.Employee;
 import me.zerosquare.simplemodel.model.Product;
-import me.zerosquare.simplemodel.model.Company;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.*;
 
@@ -25,22 +24,9 @@ public class SimpleModelTest {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-      // for mysql
-//    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=false&zeroDateTimeBehavior=convertToNull", "simplemodeluser", "simplemodeluserpw");
-
     Connector.setConnectionInfo("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "sa", "sa");
 
-    loadSchema("db/create-simplemodel-test-table.sql");
-  }
-
-  private static void loadSchema(String filename) throws Exception {
-    Logger.i("current path is: " + Paths.get("").toAbsolutePath().toString());
-
-    // load schema and create tables
-    String path = "../db/" + filename;
-    String schema = new String(Files.readAllBytes(Paths.get(filename)));
-
-    Model.execute(schema, pst -> pst.executeUpdate());
+    Schema.loadSchema("src/test/resources/db/create-simplemodel-test-table.sql");
   }
 
   @AfterClass
@@ -527,77 +513,70 @@ public class SimpleModelTest {
     assertEquals(2, modifiedColumnValues.size());
     assertEquals(22, modifiedColumnValues.get("b"));
     assertEquals(33, modifiedColumnValues.get("c"));
-    assertTrue(modifiedColumnValues.get("a") == null);
+    assertNull(modifiedColumnValues.get("a"));
   }
 
   @Test
   public void testTransactionCommit() throws Exception {
-    Employee e = new Employee();
-    e.name = "name";
-    e.companyId = 1L;
-    e.age = 1;
+    AtomicLong eid = new AtomicLong();
 
-    // create and update modified
-    long id = e.create();
-    assertTrue(id >= 1);
-
-    // FIXME misuse of tranx
     Transaction.execute(() -> {
-      Employee fe = new Employee().find(id);
-      if (fe.age == 1) {
-        Employee ue = new Employee();
-        ue.id = id;
-        ue.companyId = 2L;
-        ue.age = 2;
-        ue.update();
-      } else {
-          throw new Exception("cannot exec tranx");
-      }
+      Company c = new Company();
+      c.name = "tranx company";
+      long cid = c.create();
+
+      Employee e = new Employee();
+      e.name = "tranx";
+      e.companyId = cid;
+      e.age = 100;
+
+      // create and update modified
+      eid.set(e.create());
+      assertTrue(eid.get() >= 1);
     });
 
     // verify
-    e = new Employee().find(id);
-    assertEquals(2L, (long) e.companyId);
-    assertEquals(2, (int) e.age);
+    Employee e = new Employee().find(eid.get());
+    assertEquals("tranx", e.name);
+    assertEquals(100, (int) e.age);
   }
 
   @Test
   public void testTransactionRollback() throws Exception {
-    Employee e = new Employee();
-    e.name = "name";
-    e.companyId = 1L;
-    e.age = 1;
+    AtomicLong cid = new AtomicLong();
+    AtomicLong eid = new AtomicLong();
 
-    // create and update modified
-    long id = e.create();
-    assertTrue(id >= 1);
+    Exception coughte = null;
 
-    Exception actualEx = null;
-
-    // FIXME misuse of tranx
     try {
       Transaction.execute(() -> {
-        Employee fe = new Employee().find(id);
-        if (fe.age == 1000) {
-          Employee ue = new Employee();
-          ue.id = id;
-          ue.companyId = 2L;
-          ue.age = 2;
-          ue.update();
-        } else {
-          throw new Exception("cannot exec tranx");
-        }
+        Company c = new Company();
+        c.name = "roll company";
+        cid.set(c.create());
+
+        Employee e = new Employee();
+        e.name = "roll";
+        e.companyId = cid.get();
+        e.age = 100;
+
+        // create and update modified
+        eid.set(e.create());
+        assertTrue(eid.get() >= 1);
+
+        throw new Exception("abort tranx");
       });
     } catch (Exception ex) {
-      actualEx = ex;
+      coughte = ex;
     }
 
-    assertTrue(actualEx.getMessage().equals("cannot exec tranx"));
+    assertTrue(coughte.getMessage().equals("abort tranx"));
 
     // verify
-    e = new Employee().find(id);
-    assertEquals(1L, (long) e.companyId);
-    assertEquals(1, (int) e.age);
+    Company c = new Company().find(cid.get());
+    assertNull(c);
+
+    Employee e = new Employee().find(eid.get());
+    assertNull(e);
   }
 
   private String makeName() {
