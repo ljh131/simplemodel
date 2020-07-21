@@ -39,6 +39,19 @@ import java.util.regex.Pattern;
  */
 public class Model {
 
+  String tableName;
+
+  ModelData data = new ModelData();
+
+  private String reservedWhere = "";
+  private ArrayList<Object> reservedWhereParams = new ArrayList<>();
+
+  private String reservedSelect = "";
+  private String reservedJoin = "";
+  private String reservedOrderby = "";
+  private String reservedLimit = "";
+  private String reservedOffset = "";
+
   public static Model table(String tableName) {
     return new Model(tableName);
   }
@@ -102,53 +115,58 @@ public class Model {
   }
 
   public <T extends Model> T select(String selectClause, Object... args) {
-	String c = String.format(selectClause, args);
-    reservedSelect = c;
+    reservedSelect = String.format(selectClause, args);
     return (T)this;
   }
 
   private static final Pattern findJoinPattern = Pattern.compile("\\bjoin\\b", Pattern.CASE_INSENSITIVE);
 
   public <T extends Model> T joins(String joinClause, Object... args) {
-    if(!findJoinPattern.matcher(joinClause).find()) {
+    if (!findJoinPattern.matcher(joinClause).find()) {
       joinClause = "JOIN " + joinClause;
     }
 
-		String c = String.format(joinClause, args);
+    String c = String.format(joinClause, args);
     reservedJoin += " " + c;
     return (T)this;
   }
 
   public <T extends Model> T order(String orderClause, Object... args) {
-		String c = String.format(orderClause, args);
-    reservedOrderby = c;
+    reservedOrderby = String.format(orderClause, args);
     return (T)this;
   }
 
   public <T extends Model> T limit(long limitNumber) {
-		String c = String.format("%d", limitNumber);
-    reservedLimit = c;
+    reservedLimit = String.format("%d", limitNumber);
     return (T)this;
   }
 
   public <T extends Model> T offset(long offsetNumber) {
-		String c = String.format("%d", offsetNumber);
-    reservedOffset = c;
+    reservedOffset = String.format("%d", offsetNumber);
     return (T)this;
   }
 
-  public <T extends Model> T resetWhere() {
-    reservedWhere = "";
-    reservedWhereParams = new ArrayList<>();
-    return (T)this;
-  }
+//  public <T extends Model> T resetWhere() {
+//    reservedWhere = "";
+//    reservedWhereParams = new ArrayList<>();
+//    return (T)this;
+//  }
 
+  /**
+   * Set where clause.
+   * If you don't set where clause, default where clause will be used. (id=?)
+   * If you set where clause, default where clause won't be used.
+   * @param whereClause
+   * @param args
+   * @param <T>
+   * @return
+   */
   public <T extends Model> T where(String whereClause, Object... args) {
-    if(StringUtils.isBlank(whereClause)) return (T)this;
+    if (StringUtils.isBlank(whereClause)) return (T)this;
 
     reservedWhereParams.addAll(Arrays.asList(args));
 
-    if(reservedWhere.isEmpty()) {
+    if (reservedWhere.isEmpty()) {
       reservedWhere = whereClause;
     } else {
       reservedWhere += " and " + whereClause;
@@ -165,19 +183,19 @@ public class Model {
     String q = String.format("SELECT %s from %s", 
         reservedSelect.isEmpty() ? "*" : reservedSelect, 
         tableName);
-    if(!reservedJoin.isEmpty()) {
+    if (!reservedJoin.isEmpty()) {
       q += String.format(" %s", reservedJoin);
     }
-    if(!reservedWhere.isEmpty()) {
+    if (!reservedWhere.isEmpty()) {
       q += String.format(" WHERE %s", reservedWhere);
     }
-    if(!reservedOrderby.isEmpty()) {
+    if (!reservedOrderby.isEmpty()) {
       q += String.format(" ORDER BY %s", reservedOrderby);
     }
-    if(!reservedLimit.isEmpty()) {
+    if (!reservedLimit.isEmpty()) {
       q += String.format(" LIMIT %s", reservedLimit);
     }
-    if(!reservedOffset.isEmpty()) {
+    if (!reservedOffset.isEmpty()) {
       q += String.format(" OFFSET %s", reservedOffset);
     }
 
@@ -216,8 +234,8 @@ public class Model {
    */
   public <T extends Model> T findBy(String whereClause, Object... args) throws Exception {
     List<T> r = where(whereClause, args).limit(1).fetch();
-    if(r == null || r.isEmpty()) return null;
-    return (T)r.get(0);
+    if (r == null || r.isEmpty()) return null;
+    return r.get(0);
   }
 
   /**
@@ -354,13 +372,6 @@ public class Model {
     return tableName;
   }
 
-  public String dump() {
-    String ds = "";
-    ds += String.format("tableName: %s\n", tableName);
-    ds += String.format("columnValues:\n", data.dump());
-    return ds;
-  }
-
   private boolean enableBeforeExecute = true;
 
   private boolean enableAfterExecute = true;
@@ -411,6 +422,8 @@ public class Model {
   protected void afterExecute(QueryType type, boolean success) throws Exception { }
 
   void _beforeExecute(QueryType queryType) throws Exception {
+    Logger.t("before execute: %s", queryType.name());
+
     if (enableBeforeExecute) {
       beforeExecute(queryType);
     }
@@ -423,6 +436,8 @@ public class Model {
   }
 
   void _afterExecute(QueryType queryType, boolean success) throws Exception {
+    Logger.t("after execute: %s %s", queryType.name(), success);
+
     if (success) {
       data.columnValuesToAnnotation(this);
       data.saveColumnValues();
@@ -459,7 +474,7 @@ public class Model {
       Object val = vals.get(i);
       colidx = lastColumnIndex + 1 + i;
 
-      if(val == null) {
+      if (val == null) {
         Logger.t("preparams - idx: %d colidx: %d val: (null)", i, colidx);
         continue;
       }
@@ -467,19 +482,19 @@ public class Model {
       Logger.t("preparams - idx: %d colidx: %d val: %s", i, colidx, val.toString());
 
       // TODO need more
-      if(val instanceof Integer) {
+      if (val instanceof Integer) {
         pst.setInt(colidx, (Integer)val);
-      } else if(val instanceof Long) {
+      } else if (val instanceof Long) {
         pst.setLong(colidx, (Long)val);
-      } else if(val instanceof Boolean) {
+      } else if (val instanceof Boolean) {
         pst.setBoolean(colidx, (Boolean)val);
-      } else if(val instanceof String) {
+      } else if (val instanceof String) {
         pst.setString(colidx, (String)val);
-      } else if(val instanceof Timestamp) {
+      } else if (val instanceof Timestamp) {
         pst.setTimestamp(colidx, (Timestamp)val);
-      } else if(val instanceof java.sql.Date) {
+      } else if (val instanceof java.sql.Date) {
         pst.setDate(colidx, (java.sql.Date)val);
-      } else if(val instanceof LocalDate) {
+      } else if (val instanceof LocalDate) {
         pst.setDate(colidx, java.sql.Date.valueOf((LocalDate)val));
       } else {
         Logger.w("preparams - unrecognize type for val: %s", val.toString());
@@ -489,7 +504,7 @@ public class Model {
   }
 
   private void reserveDefaultWhereForUpdate() {
-    if(!StringUtils.isBlank(reservedWhere)) return;
+    if (!StringUtils.isBlank(reservedWhere)) return;
     reservedWhere = makeDefaultWhereForUpdate();
     Logger.t("default where for update reserved: %s", reservedWhere);
   }
@@ -507,7 +522,7 @@ public class Model {
   }
 
   private String getReservedWhere() {
-    if(StringUtils.isBlank(reservedWhere)) {
+    if (StringUtils.isBlank(reservedWhere)) {
       throw new IllegalArgumentException("no where clause specified!");
     }
     return reservedWhere;
@@ -519,17 +534,17 @@ public class Model {
    */
 
   @FunctionalInterface
-  public interface ExecuteFunction<R> {
-    ExecuteResult<R> call(PreparedStatement pst) throws Exception;
+  public interface StatementExecutor<R> {
+    ExecuteResult<R> execute(PreparedStatement pst) throws Exception;
   }
 
   public static class ExecuteResult<R> {
     public static <R> ExecuteResult<R> of(R result) {
-        return new ExecuteResult(true, result);
+        return new ExecuteResult<>(true, result);
     }
 
     public static <R> ExecuteResult<R> of(boolean success, R result) {
-      return new ExecuteResult(success, result);
+      return new ExecuteResult<>(success, result);
     }
 
     private ExecuteResult(boolean succees, R result) {
@@ -553,19 +568,23 @@ public class Model {
     private R result;
   }
 
-  private <R> R execute(QueryType queryType, String sql, ExecuteFunction exec) throws Exception {
+  private <R> R execute(QueryType queryType, String sql, StatementExecutor<R> exec) throws Exception {
     ExecuteResult<R> result = new ExecuteResult<>();
     Connector c = null;
+    boolean success = false;
+
     try {
       c = Connector.prepareStatement(sql, true);
       PreparedStatement pst = c.getPreparedStatement();
 
-      result = exec.call(pst);
+      result = exec.execute(pst);
+
+      success = true;
     } catch(SQLException e) {
-      Logger.warnException(e);
+      Logger.e("fail to execute - %s", Logger.getExceptionString(e));
       throw e;
     } finally {
-      if (c != null) { c.close(); }
+      if (c != null) { c.executed(success); }
       if (queryType != null && queryType != QueryType.SELECT) {
         _afterExecute(queryType, result.isSucceed());
       }
@@ -587,30 +606,22 @@ public class Model {
   public static <R> R execute(String sql, ManualExecuteFunction<R> exec) throws Exception {
     R result = null;
     Connector c = null;
+    boolean success = false;
+
     try {
       c = Connector.prepareStatement(sql, true);
       PreparedStatement pst = c.getPreparedStatement();
 
       result = exec.call(pst);
+
+      success = true;
     } catch(SQLException e) {
-      Logger.warnException(e);
+      Logger.e("fail to execute - %s", Logger.getExceptionString(e));
       throw e;
     } finally {
-      if (c != null) { c.close(); }
+      if (c != null) { c.executed(success); }
     }
     return result;
   }
-
-  String tableName;
-  ModelData data = new ModelData();
-
-  private String reservedWhere = "";
-  private ArrayList<Object> reservedWhereParams = new ArrayList<>();
-
-  private String reservedSelect = "";
-  private String reservedJoin = "";
-  private String reservedOrderby = "";
-  private String reservedLimit = "";
-  private String reservedOffset = "";
 
 }

@@ -26,7 +26,7 @@ public class SoftDeleteModel extends Model {
 
   @Override
   public <T extends Model> List<T> fetch() throws Exception {
-    if(!includeDeleted) {
+    if (!includeDeleted) {
       where(String.format("%s.%s is null", getTableName(), COLUMN_NAME_DELETED_AT));
     }
     return super.fetch();

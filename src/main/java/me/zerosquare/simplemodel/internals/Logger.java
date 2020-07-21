@@ -16,37 +16,32 @@ public class Logger {
     return String.format(str, args);
   }
 
-  public static void d(String str, Object... args){
+  public static void d(String str, Object... args) {
     logger.debug(makeLine(str, args));
   }
 
-  public static void t(String str, Object... args){
+  public static void t(String str, Object... args) {
     logger.trace(makeLine(str, args));
   }
 
-  public static void i(String str, Object... args){
+  public static void i(String str, Object... args) {
     logger.info(makeLine(str, args));
   }
 
-  public static void w(String str, Object... args){
+  public static void w(String str, Object... args) {
     logger.warn(makeLine(str, args));
   }
 
-  public static void e(String str, Object... args){
+  public static void e(String str, Object... args) {
     logger.error(makeLine(str, args));
   }
 
-  public static void warnException(Exception e) {
-    String trace = getExceptionStackTrace(e);
-    w("exception has occured - %s %s", e.getMessage(), trace);
-  }
-
-  private static String getExceptionStackTrace(Exception e) {
+  public static String getExceptionString(Exception e) {
     StringWriter writer = new StringWriter();
     PrintWriter printWriter = new PrintWriter(writer);
     e.printStackTrace(printWriter);
     printWriter.flush();
 
-    return writer.toString();
+    return String.format("%s\n%s", e.getMessage(), writer.toString());
   }
 }

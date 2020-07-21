@@ -4,20 +4,19 @@ import me.zerosquare.simplemodel.annotations.Column;
 import me.zerosquare.simplemodel.annotations.Table;
 import me.zerosquare.simplemodel.exceptions.AbortedException;
 import me.zerosquare.simplemodel.internals.Logger;
+import me.zerosquare.simplemodel.model.Company;
 import me.zerosquare.simplemodel.model.DummyEmployee;
 import me.zerosquare.simplemodel.model.Employee;
 import me.zerosquare.simplemodel.model.Product;
-import me.zerosquare.simplemodel.model.Company;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.Assert.*;
 
@@ -25,22 +24,9 @@ public class SimpleModelTest {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
-      // for mysql
-//    Connector.setConnectionInfo("jdbc:mysql://localhost/simplemodel?useSSL=false&zeroDateTimeBehavior=convertToNull", "simplemodeluser", "simplemodeluserpw");
-
     Connector.setConnectionInfo("jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "sa", "sa");
 
-    loadSchema("db/create-simplemodel-test-table.sql");
-  }
-
-  private static void loadSchema(String filename) throws Exception {
-    Logger.i("current path is: " + Paths.get("").toAbsolutePath().toString());
-
-    // load schema and create tables
-    String path = "../db/" + filename;
-    String schema = new String(Files.readAllBytes(Paths.get(filename)));
-
-    Model.execute(schema, pst -> pst.executeUpdate());
+    Schema.loadSchema("src/test/resources/db/create-simplemodel-test-table.sql");
   }
 
   @AfterClass
@@ -87,7 +73,7 @@ public class SimpleModelTest {
 
     // employee select and not found
     r = Model.table("employees").find(404_404_404);
-    assertEquals(null, r);
+    assertNull(r);
   }
 
   @Test
@@ -106,7 +92,7 @@ public class SimpleModelTest {
     // select
     List<Employee> es = new Employee().where("id = ?", id).fetch();
     Employee e = es.get(0);
-    assertTrue(e != null);
+    assertNotNull(e);
     assertEquals(name, e.name);
     assertEquals(1, e.age.intValue());
 
@@ -129,7 +115,7 @@ public class SimpleModelTest {
     assertEquals(1, de.delete());
 
     // confirm not exists
-    assertTrue(new Employee().find(id) == null);
+    assertNull(new Employee().find(id));
   }
 
   @Test
@@ -182,7 +168,7 @@ public class SimpleModelTest {
     // select
     List<Employee> es = new Employee().where("id = ?", id).fetch();
     Employee e = es.get(0);
-    assertTrue(e != null);
+    assertNotNull(e);
     assertEquals(name, e.name);
     assertEquals(1, e.age.intValue());
 
@@ -194,7 +180,7 @@ public class SimpleModelTest {
     assertEquals(1, e.delete());
 
     // confirm not exists
-    assertTrue(new Employee().find(id) == null);
+    assertNull(new Employee().find(id));
   }
 
   @Test
@@ -213,15 +199,15 @@ public class SimpleModelTest {
     assertEquals(name, p.name);
 
     // delete
-    assertTrue(p.delete() == 1);
+    assertEquals(1, p.delete());
 
     // confirm not exists
-    assertTrue(new Product().find(id) == null);
+    assertNull(new Product().find(id));
 
     // but it is alive actually!
     p = new Product().includeDeleted().find(id);
     assertEquals(name, p.name);
-    assertTrue(p.deletedAt != null);
+    assertNotNull(p.deletedAt);
 
     Logger.i("%s", p.deletedAt.toString());
   }
@@ -407,9 +393,9 @@ public class SimpleModelTest {
     me.age = age;
     try {
       eid = me.create();
-      assertFalse(true);
+      fail();
     } catch (AbortedException ex) {
-      assertTrue(ex != null);
+      assertNotNull(ex);
     }
 
     // insert by force
@@ -422,9 +408,9 @@ public class SimpleModelTest {
     // fail to get when age is zero
     try {
       new MyEmployee().find(eid);
-      assertFalse(true);
+      fail();
     } catch (AbortedException ex) {
-      assertTrue(ex != null);
+      assertNotNull(ex);
     }
 
     // now, disable handler and insert with age zero
@@ -459,7 +445,7 @@ public class SimpleModelTest {
 
     // find
     DummyEmployee e = new DummyEmployee().find(id);
-    assertTrue(e != null);
+    assertNotNull(e);
     assertEquals(name, e.name);
     assertEquals(1, e.age.intValue());
   }
@@ -527,7 +513,70 @@ public class SimpleModelTest {
     assertEquals(2, modifiedColumnValues.size());
     assertEquals(22, modifiedColumnValues.get("b"));
     assertEquals(33, modifiedColumnValues.get("c"));
-    assertTrue(modifiedColumnValues.get("a") == null);
+    assertNull(modifiedColumnValues.get("a"));
+  }
+
+  @Test
+  public void testTransactionCommit() throws Exception {
+    AtomicLong eid = new AtomicLong();
+
+    Transaction.execute(() -> {
+      Company c = new Company();
+      c.name = "tranx company";
+      long cid = c.create();
+
+      Employee e = new Employee();
+      e.name = "tranx";
+      e.companyId = cid;
+      e.age = 100;
+
+      // create and update modified
+      eid.set(e.create());
+      assertTrue(eid.get() >= 1);
+    });
+
+    // verify
+    Employee e = new Employee().find(eid.get());
+    assertEquals("tranx", e.name);
+    assertEquals(100, (int) e.age);
+  }
+
+  @Test
+  public void testTransactionRollback() throws Exception {
+    AtomicLong cid = new AtomicLong();
+    AtomicLong eid = new AtomicLong();
+
+    Exception coughte = null;
+
+    try {
+      Transaction.execute(() -> {
+        Company c = new Company();
+        c.name = "roll company";
+        cid.set(c.create());
+
+        Employee e = new Employee();
+        e.name = "roll";
+        e.companyId = cid.get();
+        e.age = 100;
+
+        // create and update modified
+        eid.set(e.create());
+        assertTrue(eid.get() >= 1);
+
+        throw new Exception("abort tranx");
+      });
+    } catch (Exception ex) {
+      coughte = ex;
+    }
+
+    assertEquals("abort tranx", coughte.getMessage());
+
+    // verify
+    Company c = new Company().find(cid.get());
+    assertNull(c);
+
+    Employee e = new Employee().find(eid.get());
+    assertNull(e);
   }
 
   private String makeName() {
