@@ -178,7 +178,7 @@ class ModelData {
       Logger.t("fetched - table: %s key: %s type: %s val: %s",
               table, key, type, val == null ? "(null)" : val.toString());
 
-      if(!table.equals(tableName) && table.length() > 0) {
+      if (!table.equals(tableName) && table.length() > 0) {
         key = String.format("%s.%s", table, key);
       }
       colvals.put(key, val);
@@ -250,7 +250,7 @@ class ModelData {
 
   private String columnFieldName(Column col, Field field) {
     String name = col.name();
-    if(StringUtils.isBlank(name)) name = field.getName();
+    if (StringUtils.isBlank(name)) name = field.getName();
     return name.toLowerCase();
   }
 
@@ -263,7 +263,7 @@ class ModelData {
   private void setFieldValue(Object o, Field field, Object val) {
     try {
       // TODO need more
-      if(val != null && field.getType() == Long.class && val instanceof Integer) {
+      if (val != null && field.getType() == Long.class && val instanceof Integer) {
         field.set(o, Long.valueOf((Integer)val));
       } else {
         field.set(o, val);
@@ -275,7 +275,7 @@ class ModelData {
   }
 
   private void validateAnnotatedField(Field field) {
-    if(field.getType().isPrimitive()) {
+    if (field.getType().isPrimitive()) {
       throw new RuntimeException(String.format("field '%s %s' should not be primitive!", field.getType().getName(), field.getName()));
     }
   }

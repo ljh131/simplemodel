@@ -28,7 +28,7 @@ public class Product extends SoftDeleteModel {
 
   @Override
   protected void beforeExecute(QueryType type) {
-    if(type == QueryType.UPDATE) {
+    if (type == QueryType.UPDATE) {
       price = price * 10;
     }
   }
