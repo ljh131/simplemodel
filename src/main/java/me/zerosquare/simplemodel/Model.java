@@ -21,21 +21,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- *
  * Use this class directly, or extends this class to use ORM.
- *
- * # Special columns
- * Special columns have predefined column names: `id`, `created_at`, `updated_at`
- *
- *  - `id` is used by find and update/delete (only if where is not specified).
- *  - If you want to use these methods, you should have `id` column in the table.
- *
- *  - `created_at`/`updated_at` are also stored when row is created/updated.
- *  - If you want to store them, you should put `created_at`/`updated_at` with null value or map these to appropriate fields in the ORM class.
- *
- * # ORM fields takes precedence
- * If ORM fields and data with `put` or `setColumnValues` both are exists, ORM fields takes precedence over data.
- *
  */
 public class Model {
 
@@ -145,12 +131,6 @@ public class Model {
     reservedOffset = String.format("%d", offsetNumber);
     return (T)this;
   }
-
-//  public <T extends Model> T resetWhere() {
-//    reservedWhere = "";
-//    reservedWhereParams = new ArrayList<>();
-//    return (T)this;
-//  }
 
   /**
    * Set where clause.
