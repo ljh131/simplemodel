@@ -140,3 +140,22 @@ long employeeId2 = (long)rs.get(1).id;
 // joined table's columns are only accessable with their table name prefix
 long companyid = rs.get(0).getInt("companies.id");
 ```
+
+## Read first!
+Read following topics before using.
+
+### Special columns
+Special columns have predefined column names: `id`, `created_at`, `updated_at`
+
+- `id` is used by find and update/delete (only if where is not specified).
+- If you want to use these methods, you should have `id` column in the table.
+
+- `created_at`/`updated_at` are stored when row is created/updated.
+- If you want to store them, you should put `created_at`/`updated_at` with null value or map these to appropriate fields in the ORM class.
+
+### ORM fields takes precedence
+If ORM fields and data with `put` or `setColumnValues` both are exists, ORM fields takes precedence over data.
+
+### Access joined table
+Joined table's column can be accessed through `table name`.`column name`.
+If you join same table multiple times, so those keys are duplicated, accessing those values may result in unexpected values. In this case, use alias to specify unique alias and access through it.

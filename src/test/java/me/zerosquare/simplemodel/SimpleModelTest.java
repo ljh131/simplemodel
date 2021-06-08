@@ -4,13 +4,8 @@ import me.zerosquare.simplemodel.annotations.Column;
 import me.zerosquare.simplemodel.annotations.Table;
 import me.zerosquare.simplemodel.exceptions.AbortedException;
 import me.zerosquare.simplemodel.internals.Logger;
-import me.zerosquare.simplemodel.model.Company;
-import me.zerosquare.simplemodel.model.DummyEmployee;
-import me.zerosquare.simplemodel.model.Employee;
-import me.zerosquare.simplemodel.model.Product;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import me.zerosquare.simplemodel.model.*;
+import org.junit.*;
 
 import java.sql.ResultSet;
 import java.util.List;
@@ -31,6 +26,21 @@ public class SimpleModelTest {
 
   @AfterClass
   public static void afterClass() {
+  }
+
+  @Before
+  public void before() {
+  }
+
+  @After
+  public void after() throws Exception {
+    Model.table("companies").where("1=1").delete();
+    Model.table("employees").where("1=1").delete();
+    Model.table("products").where("1=1").delete();
+
+    Model.table("users").where("1=1").delete();
+    Model.table("docs").where("1=1").delete();
+    Model.table("comments").where("1=1").delete();
   }
 
   @Test
@@ -577,6 +587,44 @@ public class SimpleModelTest {
 
     Employee e = new Employee().find(eid.get());
     assertNull(e);
+  }
+
+  @Test
+  public void testColumnAlias() throws Exception {
+    User u = new User("u");
+    u.id = u.create();
+
+    User r = new User().select("name n").find(u.id);
+    assertEquals("u", r.name);
+    assertEquals("u", r.get("n"));
+  }
+
+  @Test
+  public void testJoinSameTableMultiple() throws Exception {
+    User u = new User("u");
+    u.id = u.create();
+
+    User u2 = new User("u2");
+    u2.id = u2.create();
+
+    Doc d = new Doc(u.id, "title", "content");
+    d.id = d.create();
+
+    // u2 write comment on u's doc
+    Comment c = new Comment(u2.id, d.id, "comment");
+    c.id = c.create();
+
+    List<Comment> rs = new Comment()
+            .joins("LEFT OUTER JOIN users on users.id = comments.user_id")
+            .joins("LEFT OUTER JOIN docs on docs.id = comments.doc_id")
+            .joins("LEFT OUTER JOIN users AS doc_users on doc_users.id = docs.user_id")
+            .select("*, doc_users.name as doc_users_name")
+            .fetch();
+
+    Comment r = rs.get(0);
+
+    assertEquals(u.name, r.get("doc_users_name"));
+    assertEquals(u2.name, r.get("users.name"));
   }
 
   private String makeName() {

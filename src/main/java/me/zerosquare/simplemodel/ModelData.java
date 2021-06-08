@@ -9,10 +9,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import java.lang.reflect.Field;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 class ModelData {
 
@@ -131,6 +128,13 @@ class ModelData {
       return modified;
   }
 
+  /**
+   * stores each column as lowered key `table_name`.`column_name`, and also lowered key `alias (label)` if alias exists
+   * @param tableName
+   * @param rs
+   * @return
+   * @throws SQLException
+   */
   Map<String, Object> getColumnValuesFromResultSet(String tableName, ResultSet rs) throws SQLException {
     Map<String, Object> colvals = new HashMap<>();
 
@@ -141,6 +145,7 @@ class ModelData {
       // transform into lower case because h2 db returns CAPITALIZED table/column names!
       String table = meta.getTableName(col).toLowerCase();
       String key = meta.getColumnName(col).toLowerCase();
+      String label = meta.getColumnLabel(col).toLowerCase();
       int type = meta.getColumnType(col);
       Object val;
 
@@ -175,13 +180,24 @@ class ModelData {
                   meta.getColumnTypeName(col), type, meta.getColumnClassName(col), key));
       }
 
-      Logger.t("fetched - table: %s key: %s type: %s val: %s",
-              table, key, type, val == null ? "(null)" : val.toString());
+      Logger.t("fetched - table: %s key: %s label: %s type: %s val: %s",
+              table, key, label, type, val == null ? "(null)" : val.toString());
 
+      String storeKey = key;
       if (!table.equals(tableName) && table.length() > 0) {
-        key = String.format("%s.%s", table, key);
+        storeKey = String.format("%s.%s", table, key);
       }
-      colvals.put(key, val);
+
+      if (!colvals.containsKey(storeKey)) {
+        colvals.put(storeKey, val);
+      } else {
+        Logger.w("key duplicated! overwrite skipped! - table: %s storekey: %s val: %s",
+                table, storeKey , val == null ? "(null)" : val.toString());
+      }
+
+      if (!label.equals(key)) {
+        colvals.put(label, val);
+      }
     }
 
     return colvals;

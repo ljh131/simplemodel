@@ -11,6 +11,9 @@ public class Product extends SoftDeleteModel {
   @Column
   public Long id;
 
+  @Column(name = "company_id")
+  public Long companyId;
+
   @Column
   public String name;
 
