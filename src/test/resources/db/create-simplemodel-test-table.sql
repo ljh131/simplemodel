@@ -25,7 +25,6 @@ create table if not exists products (
   deleted_at timestamp null default null
 );
 
-
 drop table if exists users;
 create table if not exists users (
     id int(11) not null auto_increment primary key,
@@ -39,6 +38,7 @@ create table if not exists docs (
     user_id int(11) not null,
     title varchar(64) not null,
     content varchar(1024) not null,
+    meta varchar(1024) null,
     created_at timestamp default now()
 );
 

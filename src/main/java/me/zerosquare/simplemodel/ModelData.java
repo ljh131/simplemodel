@@ -115,21 +115,22 @@ class ModelData {
   }
 
   Map<String, Object> getModifiedColumnValues() {
-      Map<String, Object> modified = new HashMap<>();
+    Map<String, Object> modified = new HashMap<>();
 
-      for (Map.Entry<String, Object> kv : columnValues.entrySet()) {
-        String k = kv.getKey();
-        Optional<Object> v = Optional.ofNullable(kv.getValue());
-        if (oldColumnValues.containsKey(k) && !Optional.ofNullable(oldColumnValues.get(k)).equals(v)) {
-          modified.put(k, v.orElse(null));
-        }
+    for (Map.Entry<String, Object> kv : columnValues.entrySet()) {
+      String k = kv.getKey();
+      Optional<Object> v = Optional.ofNullable(kv.getValue());
+      if (oldColumnValues.containsKey(k) && !Optional.ofNullable(oldColumnValues.get(k)).equals(v)) {
+        modified.put(k, v.orElse(null));
       }
+    }
 
-      return modified;
+    return modified;
   }
 
   /**
    * stores each column as lowered key `table_name`.`column_name`, and also lowered key `alias (label)` if alias exists
+   *
    * @param tableName
    * @param rs
    * @return
@@ -141,7 +142,7 @@ class ModelData {
     ResultSetMetaData meta = rs.getMetaData();
     int cols = meta.getColumnCount();
 
-    for(int col = 1; col <= cols; col++) {
+    for (int col = 1; col <= cols; col++) {
       // transform into lower case because h2 db returns CAPITALIZED table/column names!
       String table = meta.getTableName(col).toLowerCase();
       String key = meta.getColumnName(col).toLowerCase();
@@ -150,7 +151,7 @@ class ModelData {
       Object val;
 
       // TODO need more
-      switch(type) {
+      switch (type) {
         case Types.BIT:
         case Types.TINYINT:
         case Types.BOOLEAN:
@@ -176,8 +177,10 @@ class ModelData {
           break;
 
         default:
-          throw new RuntimeException(String.format("Unknown column type! %s(%d) %s on column %s",
+          Logger.d(String.format("Unknown column type! %s(%d) %s on column %s",
                   meta.getColumnTypeName(col), type, meta.getColumnClassName(col), key));
+
+          val = rs.getObject(col);
       }
 
       Logger.t("fetched - table: %s key: %s label: %s type: %s val: %s",
@@ -192,7 +195,7 @@ class ModelData {
         colvals.put(storeKey, val);
       } else {
         Logger.w("key duplicated! overwrite skipped! - table: %s storekey: %s val: %s",
-                table, storeKey , val == null ? "(null)" : val.toString());
+                table, storeKey, val == null ? "(null)" : val.toString());
       }
 
       if (!label.equals(key)) {
@@ -208,12 +211,11 @@ class ModelData {
    */
   private boolean isValidKeyValue(String key, Object val) {
     if (key.equals(COLUMN_NAME_ID) ||
-      key.equals(COLUMN_NAME_CREATED_AT) || 
-      key.equals(COLUMN_NAME_UPDATED_AT)) {
+            key.equals(COLUMN_NAME_CREATED_AT) ||
+            key.equals(COLUMN_NAME_UPDATED_AT)) {
       return false;
     }
 
-    // FIXME cannot update to null due to this!
     return val != null;
   }
 
@@ -272,6 +274,7 @@ class ModelData {
 
   /**
    * let Integer be put in Long
+   *
    * @param o
    * @param field
    * @param val
@@ -280,7 +283,7 @@ class ModelData {
     try {
       // TODO need more
       if (val != null && field.getType() == Long.class && val instanceof Integer) {
-        field.set(o, Long.valueOf((Integer)val));
+        field.set(o, Long.valueOf((Integer) val));
       } else {
         field.set(o, val);
       }

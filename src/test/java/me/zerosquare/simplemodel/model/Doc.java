@@ -18,6 +18,9 @@ public class Doc extends Model {
   @Column
   public String content;
 
+  @Column
+  public String meta;
+
   public Doc() {
   }
 

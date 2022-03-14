@@ -32,33 +32,33 @@ public class SimpleModelExample {
 
     // insert
     long id = Model.table("employees")
-                   .put("name", "simplemodel tester")
-                   .put("age", 30)
-                   .create();
+            .put("name", "simplemodel tester")
+            .put("age", 30)
+            .create();
 
     System.out.printf("new employee created with id: %d\n", id);
 
     // select (using where)
     Model r = Model.table("employees")
-                   .where("name = ?", "simplemodel tester")
-                   .where("age = ?", 30)
-                   .fetch().get(0);
+            .where("name = ?", "simplemodel tester")
+            .where("age = ?", 30)
+            .fetch().get(0);
 
-    System.out.printf("selected employee id: %d, name: %s, age: %d\n", 
-        r.getId(), r.getString("name"), r.getInt("age"));
+    System.out.printf("selected employee id: %d, name: %s, age: %d\n",
+            r.getId(), r.getString("name"), r.getInt("age"));
 
     // update
     long numUpdated = Model.table("employees")
-                           .where("id = ?", id)
-                           .put("age", 31)
-                           .update();
+            .where("id = ?", id)
+            .put("age", 31)
+            .update();
 
     // you could use findBy (like rails' Active Record)
     r = Model.table("employees")
-             .findBy("name = ? and age = ?", "simplemodel tester", 31);
+            .findBy("name = ? and age = ?", "simplemodel tester", 31);
 
-    System.out.printf("selected employee id: %d, name: %s, age: %d\n", 
-        r.getId(), r.getString("name"), r.getInt("age"));
+    System.out.printf("selected employee id: %d, name: %s, age: %d\n",
+            r.getId(), r.getString("name"), r.getInt("age"));
 
     // or more simply, find with id
     r = Model.table("employees").find(id);
@@ -82,10 +82,10 @@ public class SimpleModelExample {
     // select
     List<Employee> es = new Employee().where("id = ?", id).fetch();
     Employee e = es.get(0);
-    System.out.printf("selected employee id: %d, name: %s, age: %d\n", 
-        e.id, e.name, e.age);
+    System.out.printf("selected employee id: %d, name: %s, age: %d\n",
+            e.id, e.name, e.age);
 
-    // update
+    // update without select
     Employee ue = new Employee();
     ue.id = id;
     ue.age = 12;
@@ -127,9 +127,9 @@ public class SimpleModelExample {
 
     // select with join
     List<Employee> rs = new Employee()
-      .joins("companies on companies.id = employees.company_id")
-      .where("companies.id = ?", cid)
-      .order("employees.id").fetch();
+            .joins("companies on companies.id = employees.company_id")
+            .where("companies.id = ?", cid)
+            .order("employees.id").fetch();
 
     long employeeId1 = rs.get(0).id;
     long employeeId2 = rs.get(1).id;

@@ -58,7 +58,7 @@ public class SimpleModelTest {
     // basic select (use where twice)
     //Model r = Model.table("employees").where("id = ?", id).where("name = ?", name).fetch().get(0);
     Model r = Model.table("employees").where("name = ?", name).where("age = ?", age).fetch().get(0);
-    assertEquals(id, (long)r.getId());
+    assertEquals(id, (long) r.getId());
     assertEquals(name, r.getString("name"));
     assertEquals(age, r.getInt("age"));
 
@@ -109,7 +109,7 @@ public class SimpleModelTest {
     // exists
     assertTrue(new Employee().where("id = ?", id).exists());
 
-    // update
+    // update without select
     Employee ue = new Employee();
     ue.id = id;
     ue.age = 12;
@@ -135,12 +135,12 @@ public class SimpleModelTest {
 
   @Test
   public void testOffset() throws Exception {
-    int price = (int)(System.currentTimeMillis() / 1000);
+    int price = (int) (System.currentTimeMillis() / 1000);
 
     Product np = new Product();
     np.price = price;
 
-    for(int i = 0; i < 10; i++) {
+    for (int i = 0; i < 10; i++) {
       np.name = String.format("offset%d", i);
       assertTrue(np.create() >= 1);
     }
@@ -150,13 +150,13 @@ public class SimpleModelTest {
 
     // first page
     ps = query.offset(0).fetch();
-    for(int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++) {
       assertEquals(String.format("offset%d", i), ps.get(i).name);
     }
 
     // second page
     ps = query.offset(5).fetch();
-    for(int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++) {
       assertEquals(String.format("offset%d", i + 5), ps.get(i).name);
     }
   }
@@ -223,7 +223,7 @@ public class SimpleModelTest {
   }
 
   @Test
-  public void testBeforeExecute() throws Exception{
+  public void testBeforeExecute() throws Exception {
     String name = makeName();
 
     // insert
@@ -300,8 +300,8 @@ public class SimpleModelTest {
 
     assertEquals(2, rs.size());
 
-    assertEquals(eid1, (long)rs.get(0).id);
-    assertEquals(eid2, (long)rs.get(1).id);
+    assertEquals(eid1, (long) rs.get(0).id);
+    assertEquals(eid2, (long) rs.get(1).id);
 
     // joined table's columns are only accessable with their table name prefix
     assertEquals(cid, rs.get(0).getInt("companies.id"));
@@ -330,7 +330,7 @@ public class SimpleModelTest {
     assertTrue(eid2 >= 1);
 
     Employee rs = new Employee().joins("join companies on companies.id = employees.company_id").find(eid1);
-    assertEquals(eid1, (long)rs.id);
+    assertEquals(eid1, (long) rs.id);
   }
 
   /**
@@ -392,10 +392,10 @@ public class SimpleModelTest {
     // check whether age in db is doubled
     Employee e = new Employee().find(eid);
     assertEquals(name, e.name);
-    assertEquals(age * 2, (long)e.age);
+    assertEquals(age * 2, (long) e.age);
 
     MyEmployee me2 = new MyEmployee().find(eid);
-    assertEquals(age, (long)me2.age);
+    assertEquals(age, (long) me2.age);
 
     // fail to create when age is zero
     age = 0;
@@ -496,7 +496,7 @@ public class SimpleModelTest {
     e.update(true);
 
     e.companyId = 5L;
-    e.age  = 5;
+    e.age = 5;
     e.update(true);
 
     e = new Employee().find(id);
@@ -625,6 +625,25 @@ public class SimpleModelTest {
 
     assertEquals(u.name, r.get("doc_users_name"));
     assertEquals(u2.name, r.get("users.name"));
+  }
+
+  @Test
+  public void testUpdateColumnToNull() throws Exception {
+    User u = new User("u");
+    u.id = u.create();
+
+    Doc d = new Doc(u.id, "title", "content");
+    d.meta = "test meta";
+    d.id = d.create();
+
+    Doc ds = new Doc().find(d.id);
+    assertEquals("test meta", ds.meta);
+
+    // update to null and get
+    d.updateColumn("meta", null);
+
+    ds = new Doc().find(d.id);
+    assertEquals(null, ds.meta);
   }
 
   private String makeName() {
