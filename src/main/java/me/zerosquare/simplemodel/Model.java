@@ -79,9 +79,9 @@ public class Model {
     ArrayList<String> colnames = nvs.getLeft();
     ArrayList<Object> colvals = nvs.getRight();
 
-    String q = String.format("INSERT INTO %s(%s) VALUES(%s)", tableName, 
-      StringUtils.join(colnames.toArray(), ','), 
-      StringUtils.join(colnames.stream().map(e -> "?").toArray(), ','));
+    String q = String.format("INSERT INTO %s(%s) VALUES(%s)", tableName,
+            StringUtils.join(colnames.toArray(), ','),
+            StringUtils.join(colnames.stream().map(e -> "?").toArray(), ','));
 
     return execute(queryType, q, pst -> {
       addParameters(pst, 0, colvals);
@@ -102,7 +102,7 @@ public class Model {
 
   public <T extends Model> T select(String selectClause, Object... args) {
     reservedSelect = String.format(selectClause, args);
-    return (T)this;
+    return (T) this;
   }
 
   private static final Pattern findJoinPattern = Pattern.compile("\\bjoin\\b", Pattern.CASE_INSENSITIVE);
@@ -114,35 +114,36 @@ public class Model {
 
     String c = String.format(joinClause, args);
     reservedJoin += " " + c;
-    return (T)this;
+    return (T) this;
   }
 
   public <T extends Model> T order(String orderClause, Object... args) {
     reservedOrderby = String.format(orderClause, args);
-    return (T)this;
+    return (T) this;
   }
 
   public <T extends Model> T limit(long limitNumber) {
     reservedLimit = String.format("%d", limitNumber);
-    return (T)this;
+    return (T) this;
   }
 
   public <T extends Model> T offset(long offsetNumber) {
     reservedOffset = String.format("%d", offsetNumber);
-    return (T)this;
+    return (T) this;
   }
 
   /**
    * Set where clause.
    * If you don't set where clause, default where clause will be used. (id=?)
    * If you set where clause, default where clause won't be used.
+   *
    * @param whereClause
    * @param args
    * @param <T>
    * @return
    */
   public <T extends Model> T where(String whereClause, Object... args) {
-    if (StringUtils.isBlank(whereClause)) return (T)this;
+    if (StringUtils.isBlank(whereClause)) return (T) this;
 
     reservedWhereParams.addAll(Arrays.asList(args));
 
@@ -151,7 +152,7 @@ public class Model {
     } else {
       reservedWhere += " and " + whereClause;
     }
-    return (T)this;
+    return (T) this;
   }
 
   /**
@@ -160,9 +161,9 @@ public class Model {
   public <T extends Model> List<T> fetch() throws Exception {
     QueryType queryType = QueryType.SELECT;
 
-    String q = String.format("SELECT %s from %s", 
-        reservedSelect.isEmpty() ? "*" : reservedSelect, 
-        tableName);
+    String q = String.format("SELECT %s from %s",
+            reservedSelect.isEmpty() ? "*" : reservedSelect,
+            tableName);
     if (!reservedJoin.isEmpty()) {
       q += String.format(" %s", reservedJoin);
     }
@@ -184,7 +185,7 @@ public class Model {
       ResultSet rs = pst.executeQuery();
       ArrayList<T> models = new ArrayList<>();
 
-      while(rs.next()) {
+      while (rs.next()) {
         Map<String, Object> colvals = data.getColumnValuesFromResultSet(tableName, rs);
 
         T model = newInstance();
@@ -195,7 +196,7 @@ public class Model {
         models.add(model);
       }
 
-      return ExecuteResult.of(true, (List<T>)models);
+      return ExecuteResult.of(true, (List<T>) models);
     });
   }
 
@@ -206,7 +207,7 @@ public class Model {
    */
   public <T extends Model> T fetchFirst() throws Exception {
     List<Model> fetched = fetch();
-    return fetched.isEmpty() ? null : (T)fetched.get(0);
+    return fetched.isEmpty() ? null : (T) fetched.get(0);
   }
 
   /**
@@ -226,21 +227,23 @@ public class Model {
   }
 
   public boolean exists() throws Exception {
-      select("1");
-      limit(1);
-      return fetchFirst() != null;
+    select("1");
+    limit(1);
+    return fetchFirst() != null;
   }
 
   /**
    * Update all columns.
+   *
    * @return affected row count
    */
   public long update() throws Exception {
-      return update(false);
+    return update(false);
   }
 
   /**
    * update all columns or only modified columns.
+   *
    * @param updateModifiedOnly
    * @return
    * @throws Exception
@@ -267,13 +270,14 @@ public class Model {
       int last = addParameters(pst, 0, colvals);
       addParameters(pst, last, reservedWhereParams);
 
-      return ExecuteResult.of(true, (long)pst.executeUpdate());
+      return ExecuteResult.of(true, (long) pst.executeUpdate());
     });
   }
 
   /**
    * Update single column only.
    * Note that it update by using only specified column name and value, not using ORM or other values.
+   *
    * @return affected row count
    */
   public long updateColumn(String columnName, Object value) throws Exception {
@@ -288,7 +292,7 @@ public class Model {
       int last = addParameters(pst, 0, Arrays.asList(value));
       addParameters(pst, last, reservedWhereParams);
 
-      return ExecuteResult.of(true, (long)pst.executeUpdate());
+      return ExecuteResult.of(true, (long) pst.executeUpdate());
     });
   }
 
@@ -300,12 +304,12 @@ public class Model {
     _beforeExecute(queryType);
 
     String q = String.format("DELETE FROM %s WHERE %s", tableName,
-      getReservedWhere());
+            getReservedWhere());
 
     return execute(queryType, q, pst -> {
       addParameters(pst, 0, reservedWhereParams);
 
-      return ExecuteResult.of(true, (long)pst.executeUpdate());
+      return ExecuteResult.of(true, (long) pst.executeUpdate());
     });
   }
 
@@ -322,7 +326,7 @@ public class Model {
    */
   public <T extends Model> T put(String key, Object val) {
     data.put(key, val);
-    return (T)this;
+    return (T) this;
   }
 
   /**
@@ -333,15 +337,15 @@ public class Model {
   }
 
   public String getString(String columnName) {
-    return (String)get(columnName);
+    return (String) get(columnName);
   }
 
   public int getInt(String columnName) {
-    return (int)get(columnName);
+    return (int) get(columnName);
   }
 
   public long getLong(String columnName) {
-    return (long)get(columnName);
+    return (long) get(columnName);
   }
 
   public Long getId() {
@@ -358,17 +362,19 @@ public class Model {
 
   /**
    * Enable/disable handler before query execution
+   *
    * @param enable
    * @return old value
    */
   public boolean setEnableBeforeHook(boolean enable) {
-      boolean old = enableBeforeExecute;
-      enableBeforeExecute = enable;
-      return old;
+    boolean old = enableBeforeExecute;
+    enableBeforeExecute = enable;
+    return old;
   }
 
   /**
    * Enable/disable handler after query execution
+   *
    * @param enable
    * @return old value
    */
@@ -384,22 +390,26 @@ public class Model {
   public <T extends Model> T disableHooks() {
     setEnableBeforeHook(false);
     setEnableAfterHook(false);
-    return (T)this;
+    return (T) this;
   }
 
   /**
    * Override this method to handle something before query execution or abort the execution.
    * Note that select does not invoke this method.
+   *
    * @throws Exception throw any exception to interrupt execution
    */
-  protected void beforeExecute(QueryType type) throws Exception { }
+  protected void beforeExecute(QueryType type) throws Exception {
+  }
 
   /**
    * Override this method to handle something after query execution or abort the execution.
    * Note that even if you abort the execution, already executed query is not rolled back.
+   *
    * @throws Exception throw any exception to interrupt execution
    */
-  protected void afterExecute(QueryType type, boolean success) throws Exception { }
+  protected void afterExecute(QueryType type, boolean success) throws Exception {
+  }
 
   void _beforeExecute(QueryType queryType) throws Exception {
     Logger.t("before execute: %s", queryType.name());
@@ -439,7 +449,7 @@ public class Model {
 
     try {
       return (T) declaredConstructor.newInstance();
-    } catch(InstantiationException | IllegalAccessException | InvocationTargetException e) {
+    } catch (InstantiationException | IllegalAccessException | InvocationTargetException e) {
       throw new ConstructionException("cannot make new instance of this class");
     }
   }
@@ -450,34 +460,30 @@ public class Model {
   private int addParameters(PreparedStatement pst, int lastColumnIndex, List<Object> vals) throws SQLException {
     int colidx = 0;
 
-    for(int i = 0; i < vals.size(); i++) {
+    for (int i = 0; i < vals.size(); i++) {
       Object val = vals.get(i);
       colidx = lastColumnIndex + 1 + i;
 
-      if (val == null) {
-        Logger.t("preparams - idx: %d colidx: %d val: (null)", i, colidx);
-        continue;
-      }
-
-      Logger.t("preparams - idx: %d colidx: %d val: %s", i, colidx, val.toString());
+      Logger.t("preparams - idx: %d colidx: %d val: %s", i, colidx, val);
 
       // TODO need more
       if (val instanceof Integer) {
-        pst.setInt(colidx, (Integer)val);
+        pst.setInt(colidx, (Integer) val);
       } else if (val instanceof Long) {
-        pst.setLong(colidx, (Long)val);
+        pst.setLong(colidx, (Long) val);
       } else if (val instanceof Boolean) {
-        pst.setBoolean(colidx, (Boolean)val);
+        pst.setBoolean(colidx, (Boolean) val);
       } else if (val instanceof String) {
-        pst.setString(colidx, (String)val);
+        pst.setString(colidx, (String) val);
       } else if (val instanceof Timestamp) {
-        pst.setTimestamp(colidx, (Timestamp)val);
+        pst.setTimestamp(colidx, (Timestamp) val);
       } else if (val instanceof java.sql.Date) {
-        pst.setDate(colidx, (java.sql.Date)val);
+        pst.setDate(colidx, (java.sql.Date) val);
       } else if (val instanceof LocalDate) {
-        pst.setDate(colidx, java.sql.Date.valueOf((LocalDate)val));
+        pst.setDate(colidx, java.sql.Date.valueOf((LocalDate) val));
       } else {
-        Logger.w("preparams - unrecognize type for val: %s", val.toString());
+        Logger.d("preparams - unrecognize type for val: %s", val);
+        pst.setObject(colidx, val);
       }
     }
     return colidx;
@@ -489,7 +495,7 @@ public class Model {
     Logger.t("default where for update reserved: %s", reservedWhere);
   }
 
-  // update/delete시 조건문을 지정하지 않을 경우 사용하는 where절
+  // for update/delete if where clause is not specified
   private String makeDefaultWhereForUpdate() {
     Long id = data.getId();
     return makeWhereWithFindId(id);
@@ -497,8 +503,8 @@ public class Model {
 
   private String makeWhereWithFindId(long id) {
     return StringUtils.isBlank(reservedJoin) ?
-      String.format("id=%d", id) :
-      String.format("%s.id=%d", tableName, id);
+            String.format("id=%d", id) :
+            String.format("%s.id=%d", tableName, id);
   }
 
   private String getReservedWhere() {
@@ -520,7 +526,7 @@ public class Model {
 
   public static class ExecuteResult<R> {
     public static <R> ExecuteResult<R> of(R result) {
-        return new ExecuteResult<>(true, result);
+      return new ExecuteResult<>(true, result);
     }
 
     public static <R> ExecuteResult<R> of(boolean success, R result) {
@@ -560,11 +566,13 @@ public class Model {
       result = exec.execute(pst);
 
       success = true;
-    } catch(SQLException e) {
+    } catch (SQLException e) {
       Logger.e("fail to execute - %s", Logger.getExceptionString(e));
       throw e;
     } finally {
-      if (c != null) { c.executed(success); }
+      if (c != null) {
+        c.executed(success);
+      }
       if (queryType != null && queryType != QueryType.SELECT) {
         _afterExecute(queryType, result.isSucceed());
       }
@@ -579,6 +587,7 @@ public class Model {
 
   /**
    * Execute SQL in old way
+   *
    * @param sql
    * @param exec executable function with PreparedStatement.
    * @return returns result from the return value of exec
@@ -595,11 +604,13 @@ public class Model {
       result = exec.call(pst);
 
       success = true;
-    } catch(SQLException e) {
+    } catch (SQLException e) {
       Logger.e("fail to execute - %s", Logger.getExceptionString(e));
       throw e;
     } finally {
-      if (c != null) { c.executed(success); }
+      if (c != null) {
+        c.executed(success);
+      }
     }
     return result;
   }

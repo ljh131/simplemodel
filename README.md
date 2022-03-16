@@ -141,17 +141,17 @@ long employeeId2 = (long)rs.get(1).id;
 long companyid = rs.get(0).getInt("companies.id");
 ```
 
-## Read first!
+## Caution
 Read following topics before using.
 
 ### Special columns
-Special columns have predefined column names: `id`, `created_at`, `updated_at`
+There are special columns have predefined column names: 
 
-- `id` is used by find and update/delete (only if where is not specified).
-- If you want to use these methods, you should have `id` column in the table.
+- `id`: used by find and update/delete (only if where is not specified).
+  - If you want to use these methods, you should have `id` column in the table.
 
-- `created_at`/`updated_at` are stored when row is created/updated.
-- If you want to store them, you should put `created_at`/`updated_at` with null value or map these to appropriate fields in the ORM class.
+- `created_at`/`updated_at`: stored when row is created/updated.
+  - If you want to store them, you should put `created_at`/`updated_at` with null value or map these to appropriate fields in the ORM class.
 
 ### ORM fields takes precedence
 If ORM fields and data with `put` or `setColumnValues` both are exists, ORM fields takes precedence over data.
@@ -159,3 +159,6 @@ If ORM fields and data with `put` or `setColumnValues` both are exists, ORM fiel
 ### Access joined table
 Joined table's column can be accessed through `table name`.`column name`.
 If you join same table multiple times, so those keys are duplicated, accessing those values may result in unexpected values. In this case, use alias to specify unique alias and access through it.
+
+### Update column to NULL (ORM)
+When you use ORM, you cannot simply assign an ORM field to null and update it. It is because null could mean not assigned. Use updateColumn instead.
