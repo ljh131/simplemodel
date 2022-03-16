@@ -633,17 +633,17 @@ public class SimpleModelTest {
     u.id = u.create();
 
     Doc d = new Doc(u.id, "title", "content");
-    d.meta = "test meta";
+    d.props = "test props";
     d.id = d.create();
 
     Doc ds = new Doc().find(d.id);
-    assertEquals("test meta", ds.meta);
+    assertEquals("test props", ds.props);
 
     // update to null and get
-    d.updateColumn("meta", null);
+    d.updateColumn("props", null);
 
     ds = new Doc().find(d.id);
-    assertEquals(null, ds.meta);
+    assertEquals(null, ds.props);
   }
 
   private String makeName() {

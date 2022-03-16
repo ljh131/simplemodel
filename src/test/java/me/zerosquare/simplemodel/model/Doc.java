@@ -19,7 +19,7 @@ public class Doc extends Model {
   public String content;
 
   @Column
-  public String meta;
+  public String props;
 
   public Doc() {
   }
